@@ -1,0 +1,244 @@
+@startuml Smart Voucher System - ERD (API-focused)
+
+!define TABLE(x) entity x << (T,#FFAAAA) >>
+!define PK(x) <b><color:#b8860b><&key></color> x</b>
+!define FK(x) <color:#aaaaaa><&link-intact></color> x
+!define COLUMN(x) <&media-record> x
+
+skinparam entity {
+  BackgroundColor #f9f9f9
+  BorderColor #333333
+  ArrowColor #666666
+}
+
+skinparam linetype ortho
+
+title Smart Voucher System - ERD (9 bang - API-focused)\nTich hop he thong ngoai qua external ID
+
+' ========================================
+' 1. USERS
+' ========================================
+
+TABLE(users) {
+  PK(id) : BIGSERIAL
+  --
+  COLUMN(username) : VARCHAR(50) NOT NULL UNIQUE
+  COLUMN(password_hash) : VARCHAR(255) NOT NULL
+  COLUMN(full_name) : VARCHAR(100) NOT NULL
+  COLUMN(email) : VARCHAR(100) UNIQUE
+  COLUMN(phone) : VARCHAR(20)
+  COLUMN(role) : user_role NOT NULL
+  COLUMN(is_active) : BOOLEAN DEFAULT TRUE
+  COLUMN(created_at) : TIMESTAMPTZ
+  COLUMN(updated_at) : TIMESTAMPTZ
+}
+note right of users
+  role: 'ADMIN' | 'STAFF'
+end note
+
+' ========================================
+' 2. CUSTOMERS
+' ========================================
+
+TABLE(customers) {
+  PK(id) : BIGSERIAL
+  --
+  COLUMN(external_id) : VARCHAR(100) UNIQUE
+  COLUMN(full_name) : VARCHAR(100) NOT NULL
+  COLUMN(email) : VARCHAR(100) UNIQUE
+  COLUMN(phone) : VARCHAR(20) UNIQUE
+  COLUMN(is_active) : BOOLEAN DEFAULT TRUE
+  COLUMN(created_at) : TIMESTAMPTZ
+  COLUMN(updated_at) : TIMESTAMPTZ
+}
+note right of customers
+  external_id: ID tu he thong ngoai
+  VD: "CUS-001"
+end note
+
+' ========================================
+' 3. CAMPAIGNS
+' ========================================
+
+TABLE(campaigns) {
+  PK(id) : BIGSERIAL
+  --
+  COLUMN(name) : VARCHAR(200) NOT NULL
+  COLUMN(description) : TEXT
+  COLUMN(budget) : DECIMAL(15,2)
+  COLUMN(start_date) : TIMESTAMPTZ NOT NULL
+  COLUMN(end_date) : TIMESTAMPTZ NOT NULL
+  COLUMN(status) : campaign_status NOT NULL
+  FK(created_by) : BIGINT NOT NULL
+  COLUMN(created_at) : TIMESTAMPTZ
+  COLUMN(updated_at) : TIMESTAMPTZ
+}
+note right of campaigns
+  status: 'DRAFT' | 'ACTIVE'
+  | 'PAUSED' | 'ENDED'
+  --
+  budget: ngan sach du kien
+  de so sanh voi thuc chi
+end note
+
+' ========================================
+' 4. VOUCHERS (CORE)
+' ========================================
+
+TABLE(vouchers) {
+  PK(id) : BIGSERIAL
+  --
+  COLUMN(code) : VARCHAR(50) NOT NULL UNIQUE
+  FK(campaign_id) : BIGINT
+  COLUMN(description) : TEXT
+  ..Giam gia..
+  COLUMN(discount_type) : discount_type NOT NULL
+  COLUMN(discount_value) : DECIMAL(15,2) NOT NULL
+  COLUMN(max_discount_amount) : DECIMAL(15,2)
+  ..Dieu kien..
+  COLUMN(min_order_value) : DECIMAL(15,2) DEFAULT 0
+  COLUMN(applicable_products) : JSONB DEFAULT '[]'
+  COLUMN(applicable_categories) : JSONB DEFAULT '[]'
+  COLUMN(applicable_branches) : JSONB DEFAULT '[]'
+  ..Gioi han..
+  COLUMN(max_usage_total) : INT
+  COLUMN(max_usage_per_customer) : INT
+  COLUMN(current_usage_count) : INT DEFAULT 0
+  ..Pham vi & thoi gian..
+  COLUMN(is_public) : BOOLEAN DEFAULT TRUE
+  COLUMN(valid_from) : TIMESTAMPTZ NOT NULL
+  COLUMN(valid_until) : TIMESTAMPTZ NOT NULL
+  COLUMN(status) : voucher_status NOT NULL
+  FK(created_by) : BIGINT NOT NULL
+  COLUMN(created_at) : TIMESTAMPTZ
+  COLUMN(updated_at) : TIMESTAMPTZ
+}
+note right of vouchers
+  discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT'
+  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED'
+  --
+  applicable_*: JSONB mang ID tu he thong ngoai
+  [] = ap dung tat ca
+  VD: ["SP001","SP002"]
+  --
+  is_public = TRUE: public
+  is_public = FALSE: chi KH duoc gan
+end note
+
+' ========================================
+' 5. VOUCHER_CUSTOMERS
+' ========================================
+
+TABLE(voucher_customers) {
+  PK(id) : BIGSERIAL
+  --
+  FK(voucher_id) : BIGINT NOT NULL
+  FK(customer_id) : BIGINT NOT NULL
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+
+' ========================================
+' 6. VOUCHER_DISTRIBUTIONS
+' ========================================
+
+TABLE(voucher_distributions) {
+  PK(id) : BIGSERIAL
+  --
+  FK(voucher_id) : BIGINT NOT NULL
+  FK(customer_id) : BIGINT NOT NULL
+  COLUMN(channel) : distribution_channel NOT NULL
+  COLUMN(status) : distribution_status NOT NULL
+  COLUMN(sent_at) : TIMESTAMPTZ
+  COLUMN(error_message) : TEXT
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of voucher_distributions
+  channel: 'EMAIL' | 'SMS'
+  status: 'PENDING' | 'SENT' | 'FAILED'
+end note
+
+' ========================================
+' 7. VOUCHER_USAGES
+' ========================================
+
+TABLE(voucher_usages) {
+  PK(id) : BIGSERIAL
+  --
+  FK(voucher_id) : BIGINT NOT NULL
+  FK(customer_id) : BIGINT NOT NULL
+  COLUMN(external_order_id) : VARCHAR(100) NOT NULL
+  COLUMN(external_branch_id) : VARCHAR(100)
+  COLUMN(discount_amount) : DECIMAL(15,2) NOT NULL
+  COLUMN(order_total) : DECIMAL(15,2) NOT NULL
+  COLUMN(used_at) : TIMESTAMPTZ NOT NULL
+}
+note right of voucher_usages
+  external_order_id: ma don hang
+  tu he thong ngoai (POS, web)
+  external_branch_id: ma chi nhanh
+  tu he thong ngoai
+  --
+  UNIQUE(voucher_id, external_order_id)
+  => 1 don chi dung 1 voucher 1 lan
+end note
+
+' ========================================
+' 8. API_KEYS
+' ========================================
+
+TABLE(api_keys) {
+  PK(id) : BIGSERIAL
+  --
+  COLUMN(name) : VARCHAR(100) NOT NULL
+  COLUMN(key_hash) : VARCHAR(255) NOT NULL UNIQUE
+  COLUMN(system_name) : VARCHAR(100) NOT NULL
+  COLUMN(is_active) : BOOLEAN DEFAULT TRUE
+  FK(created_by) : BIGINT NOT NULL
+  COLUMN(expires_at) : TIMESTAMPTZ
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of api_keys
+  system_name:
+  'POS_QUAN1' | 'ECOMMERCE_WEB'
+  | 'MOBILE_APP' | ...
+end note
+
+' ========================================
+' 9. API_REQUEST_LOGS
+' ========================================
+
+TABLE(api_request_logs) {
+  PK(id) : BIGSERIAL
+  --
+  FK(api_key_id) : BIGINT
+  COLUMN(endpoint) : VARCHAR(200) NOT NULL
+  COLUMN(method) : VARCHAR(10) NOT NULL
+  COLUMN(request_body) : JSONB
+  COLUMN(response_status) : INT
+  COLUMN(response_body) : JSONB
+  COLUMN(ip_address) : VARCHAR(45)
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+
+' ========================================
+' RELATIONSHIPS
+' ========================================
+
+campaigns }o--|| users : "created_by"
+
+vouchers }o--o| campaigns : "campaign_id"
+vouchers }o--|| users : "created_by"
+
+voucher_customers }o--|| vouchers : "voucher_id"
+voucher_customers }o--|| customers : "customer_id"
+
+voucher_distributions }o--|| vouchers : "voucher_id"
+voucher_distributions }o--|| customers : "customer_id"
+
+voucher_usages }o--|| vouchers : "voucher_id"
+voucher_usages }o--|| customers : "customer_id"
+
+api_keys }o--|| users : "created_by"
+api_request_logs }o--o| api_keys : "api_key_id"
+
+@enduml
