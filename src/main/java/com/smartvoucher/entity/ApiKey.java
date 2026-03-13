@@ -35,6 +35,9 @@ public class ApiKey {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
+    @Column(name = "rate_limit_per_minute")
+    private Integer rateLimitPerMinute;
+
     @Column(name = "expires_at")
     private OffsetDateTime expiresAt;
 

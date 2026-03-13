@@ -8,6 +8,7 @@ import com.smartvoucher.entity.User;
 import com.smartvoucher.entity.Voucher;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import com.smartvoucher.exception.DuplicateResourceException;
+import org.springframework.data.jpa.domain.Specification;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.CampaignRepository;
 import com.smartvoucher.repository.CustomerRepository;
@@ -79,11 +80,8 @@ public class VoucherService {
     }
 
     @Transactional(readOnly = true)
-    public Page<VoucherResponse> getAll(VoucherStatus status, Pageable pageable) {
-        if (status != null) {
-            return voucherRepository.findByStatus(status, pageable).map(VoucherResponse::from);
-        }
-        return voucherRepository.findAll(pageable).map(VoucherResponse::from);
+    public Page<VoucherResponse> getAll(Specification<Voucher> spec, Pageable pageable) {
+        return voucherRepository.findAll(spec != null ? spec : Specification.where(null), pageable).map(VoucherResponse::from);
     }
 
     @Transactional

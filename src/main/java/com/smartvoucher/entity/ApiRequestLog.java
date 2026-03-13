@@ -42,6 +42,9 @@ public class ApiRequestLog {
     @Column(name = "response_body", columnDefinition = "jsonb")
     private Object responseBody;
 
+    @Column(name = "response_time_ms")
+    private Long responseTimeMs;
+
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 

@@ -12,6 +12,33 @@ spring:
   jpa:
     show-sql: true
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:test@gmail.com}
+    password: ${MAIL_PASSWORD:changeme}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=60s
+
+app:
+  rate-limit:
+    default-per-minute: 100
+  email:
+    verification-expiry-hours: 24
+    reset-token-expiry-hours: 1
+  base-url: http://localhost:8080
+
 logging:
   level:
     com.smartvoucher: DEBUG

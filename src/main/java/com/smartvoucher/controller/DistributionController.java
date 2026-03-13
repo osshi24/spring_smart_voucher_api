@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class DistributionController {
 
     private final DistributionService distributionService;
 
+    @PreAuthorize("hasAuthority('DISTRIBUTION_CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<DistributionResponse>> create(
             @Valid @RequestBody DistributionCreateRequest request) {
@@ -27,6 +29,7 @@ public class DistributionController {
                 .body(ApiResponse.success(distributionService.create(request)));
     }
 
+    @PreAuthorize("hasAuthority('DISTRIBUTION_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<List<DistributionResponse>>> getAll(
             @RequestParam(required = false) Long voucherId,

@@ -9,6 +9,7 @@ import com.smartvoucher.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,8 +39,8 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CustomerResponse> getAll(Pageable pageable) {
-        return customerRepository.findAll(pageable).map(CustomerResponse::from);
+    public Page<CustomerResponse> getAll(Specification<Customer> spec, Pageable pageable) {
+        return customerRepository.findAll(spec != null ? spec : Specification.where(null), pageable).map(CustomerResponse::from);
     }
 
     @Transactional(readOnly = true)

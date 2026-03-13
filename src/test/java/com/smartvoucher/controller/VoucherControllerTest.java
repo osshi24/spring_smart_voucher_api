@@ -3,6 +3,7 @@ package com.smartvoucher.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import net.kaczmarzyk.spring.data.jpa.web.SpecificationArgumentResolver;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import com.smartvoucher.dto.request.VoucherCreateRequest;
 import com.smartvoucher.dto.response.VoucherResponse;
@@ -58,7 +59,7 @@ class VoucherControllerTest {
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter(objectMapper);
         mockMvc = MockMvcBuilders.standaloneSetup(voucherController)
                 .setControllerAdvice(new GlobalExceptionHandler())
-                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .setCustomArgumentResolvers(new SpecificationArgumentResolver(), new PageableHandlerMethodArgumentResolver())
                 .setMessageConverters(converter)
                 .build();
 

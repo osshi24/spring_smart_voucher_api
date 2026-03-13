@@ -14,6 +14,7 @@ import com.smartvoucher.repository.VoucherUsageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,11 +51,8 @@ public class CampaignService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CampaignResponse> getAll(CampaignStatus status, Pageable pageable) {
-        if (status != null) {
-            return campaignRepository.findByStatus(status, pageable).map(CampaignResponse::from);
-        }
-        return campaignRepository.findAll(pageable).map(CampaignResponse::from);
+    public Page<CampaignResponse> getAll(Specification<Campaign> spec, Pageable pageable) {
+        return campaignRepository.findAll(spec != null ? spec : Specification.where(null), pageable).map(CampaignResponse::from);
     }
 
     @Transactional(readOnly = true)

@@ -176,7 +176,7 @@ class VoucherServiceTest {
 
     @Test
     void getAll_withoutFilter() {
-        when(voucherRepository.findAll(any(Pageable.class)))
+        when(voucherRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(voucher)));
 
         Page<VoucherResponse> result = voucherService.getAll(null, Pageable.ofSize(10));

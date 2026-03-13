@@ -6,6 +6,7 @@ import com.smartvoucher.dto.response.VoucherValidateResponse;
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.Voucher;
 import com.smartvoucher.entity.VoucherUsage;
+import com.smartvoucher.event.VoucherRedeemedEvent;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import com.smartvoucher.exception.DuplicateResourceException;
 import com.smartvoucher.exception.ResourceNotFoundException;
@@ -16,6 +17,7 @@ import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,7 @@ public class VoucherRedemptionService {
     private final VoucherUsageRepository voucherUsageRepository;
     private final VoucherValidationService voucherValidationService;
     private final EntityManager entityManager;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public VoucherValidateResponse redeem(VoucherRedeemRequest req) {
@@ -104,6 +107,17 @@ public class VoucherRedemptionService {
             voucher.setStatus(VoucherStatus.FULLY_USED);
         }
         voucherRepository.save(voucher);
+
+        // Publish event to send confirmation email asynchronously
+        eventPublisher.publishEvent(new VoucherRedeemedEvent(
+                this,
+                customer.getId(),
+                customer.getEmail(),
+                voucher.getCode(),
+                voucher.getDiscountValue(),
+                voucher.getDiscountType(),
+                voucher.getValidUntil()
+        ));
 
         return VoucherValidateResponse.valid(
                 voucher.getCode(),

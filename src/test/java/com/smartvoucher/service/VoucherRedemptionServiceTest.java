@@ -13,6 +13,7 @@ import com.smartvoucher.repository.VoucherCustomerRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
 import jakarta.persistence.EntityManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,8 @@ class VoucherRedemptionServiceTest {
     private VoucherValidationService voucherValidationService;
     @Mock
     private EntityManager entityManager;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private VoucherRedemptionService redemptionService;
