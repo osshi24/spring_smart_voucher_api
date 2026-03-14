@@ -7,13 +7,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "password_reset_tokens")
+@Table(name = "password_reset_otps")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PasswordResetToken {
+public class PasswordResetOtp {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,12 +23,23 @@ public class PasswordResetToken {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, unique = true, length = 255)
-    private String token;
+    @Column(name = "otp_hash", nullable = false)
+    private String otpHash;
 
-    @Column(name = "expires_at", nullable = false)
-    private OffsetDateTime expiresAt;
+    @Column(name = "reset_token", unique = true)
+    private String resetToken;
 
+    @Column(name = "otp_expires_at", nullable = false)
+    private OffsetDateTime otpExpiresAt;
+
+    @Column(name = "reset_token_expires_at")
+    private OffsetDateTime resetTokenExpiresAt;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer attempts = 0;
+
+    @Builder.Default
     @Column(nullable = false)
     private Boolean used = false;
 

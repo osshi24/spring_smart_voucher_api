@@ -80,6 +80,7 @@ public class UserRegistrationService {
 
         User user = token.getUser();
         user.setEmailVerified(true);
+        user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
     }
 

@@ -13,7 +13,7 @@ skinparam entity {
 
 skinparam linetype ortho
 
-title Smart Voucher System - ERD (9 bang - API-focused)\nTich hop he thong ngoai qua external ID
+title Smart Voucher System - ERD (13 bang - API-focused)\nTich hop he thong ngoai qua external ID
 
 ' ========================================
 ' 1. USERS
@@ -27,17 +27,87 @@ TABLE(users) {
   COLUMN(full_name) : VARCHAR(100) NOT NULL
   COLUMN(email) : VARCHAR(100) UNIQUE
   COLUMN(phone) : VARCHAR(20)
-  COLUMN(role) : user_role NOT NULL
+  COLUMN(role) : VARCHAR(50) NOT NULL
   COLUMN(is_active) : BOOLEAN DEFAULT TRUE
+  COLUMN(status) : VARCHAR(20) DEFAULT 'ACTIVE'
+  COLUMN(email_verified) : BOOLEAN DEFAULT FALSE
   COLUMN(created_at) : TIMESTAMPTZ
   COLUMN(updated_at) : TIMESTAMPTZ
 }
 note right of users
   role: 'ADMIN' | 'STAFF'
+  status: 'ACTIVE' | 'PENDING'
+  | 'REJECTED' | 'SUSPENDED'
 end note
 
 ' ========================================
-' 2. CUSTOMERS
+' 2. PERMISSIONS
+' ========================================
+
+TABLE(permissions) {
+  PK(id) : BIGSERIAL
+  --
+  COLUMN(name) : VARCHAR(100) NOT NULL UNIQUE
+  COLUMN(description) : VARCHAR(255)
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of permissions
+  VD: 'VOUCHER_READ'
+  'CAMPAIGN_CREATE'
+  'USER_MANAGE' ...
+end note
+
+' ========================================
+' 3. ROLE_PERMISSIONS
+' ========================================
+
+TABLE(role_permissions) {
+  PK(role) : VARCHAR(50) NOT NULL
+  FK(permission_id) : BIGINT NOT NULL
+}
+note right of role_permissions
+  PK: (role, permission_id)
+  role: 'ADMIN' | 'STAFF'
+end note
+
+' ========================================
+' 4. EMAIL_VERIFICATION_TOKENS
+' ========================================
+
+TABLE(email_verification_tokens) {
+  PK(id) : BIGSERIAL
+  --
+  FK(user_id) : BIGINT NOT NULL
+  COLUMN(token) : VARCHAR(255) NOT NULL UNIQUE
+  COLUMN(expires_at) : TIMESTAMPTZ NOT NULL
+  COLUMN(used) : BOOLEAN DEFAULT FALSE
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of email_verification_tokens
+  Het han sau 24 gio
+  Su dung 1 lan (used=true)
+end note
+
+' ========================================
+' 5. PASSWORD_RESET_TOKENS
+' ========================================
+
+TABLE(password_reset_tokens) {
+  PK(id) : BIGSERIAL
+  --
+  FK(user_id) : BIGINT NOT NULL
+  COLUMN(token) : VARCHAR(255) NOT NULL UNIQUE
+  COLUMN(expires_at) : TIMESTAMPTZ NOT NULL
+  COLUMN(used) : BOOLEAN DEFAULT FALSE
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of password_reset_tokens
+  Het han sau 1 gio
+  Su dung 1 lan (used=true)
+end note
+
+' ========================================
+' 6. CUSTOMERS
 ' ========================================
 
 TABLE(customers) {
@@ -57,7 +127,7 @@ note right of customers
 end note
 
 ' ========================================
-' 3. CAMPAIGNS
+' 7. CAMPAIGNS
 ' ========================================
 
 TABLE(campaigns) {
@@ -68,7 +138,7 @@ TABLE(campaigns) {
   COLUMN(budget) : DECIMAL(15,2)
   COLUMN(start_date) : TIMESTAMPTZ NOT NULL
   COLUMN(end_date) : TIMESTAMPTZ NOT NULL
-  COLUMN(status) : campaign_status NOT NULL
+  COLUMN(status) : VARCHAR(50) NOT NULL
   FK(created_by) : BIGINT NOT NULL
   COLUMN(created_at) : TIMESTAMPTZ
   COLUMN(updated_at) : TIMESTAMPTZ
@@ -82,7 +152,7 @@ note right of campaigns
 end note
 
 ' ========================================
-' 4. VOUCHERS (CORE)
+' 8. VOUCHERS (CORE)
 ' ========================================
 
 TABLE(vouchers) {
@@ -92,7 +162,7 @@ TABLE(vouchers) {
   FK(campaign_id) : BIGINT
   COLUMN(description) : TEXT
   ..Giam gia..
-  COLUMN(discount_type) : discount_type NOT NULL
+  COLUMN(discount_type) : VARCHAR(50) NOT NULL
   COLUMN(discount_value) : DECIMAL(15,2) NOT NULL
   COLUMN(max_discount_amount) : DECIMAL(15,2)
   ..Dieu kien..
@@ -108,10 +178,9 @@ TABLE(vouchers) {
   COLUMN(is_public) : BOOLEAN DEFAULT TRUE
   COLUMN(valid_from) : TIMESTAMPTZ NOT NULL
   COLUMN(valid_until) : TIMESTAMPTZ NOT NULL
-  COLUMN(status) : voucher_status NOT NULL
+  COLUMN(status) : VARCHAR(50) NOT NULL
   FK(created_by) : BIGINT NOT NULL
   COLUMN(created_at) : TIMESTAMPTZ
-  COLUMN(updated_at) : TIMESTAMPTZ
 }
 note right of vouchers
   discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT'
@@ -126,7 +195,7 @@ note right of vouchers
 end note
 
 ' ========================================
-' 5. VOUCHER_CUSTOMERS
+' 9. VOUCHER_CUSTOMERS
 ' ========================================
 
 TABLE(voucher_customers) {
@@ -136,9 +205,12 @@ TABLE(voucher_customers) {
   FK(customer_id) : BIGINT NOT NULL
   COLUMN(created_at) : TIMESTAMPTZ
 }
+note right of voucher_customers
+  UNIQUE(voucher_id, customer_id)
+end note
 
 ' ========================================
-' 6. VOUCHER_DISTRIBUTIONS
+' 10. VOUCHER_DISTRIBUTIONS
 ' ========================================
 
 TABLE(voucher_distributions) {
@@ -146,19 +218,20 @@ TABLE(voucher_distributions) {
   --
   FK(voucher_id) : BIGINT NOT NULL
   FK(customer_id) : BIGINT NOT NULL
-  COLUMN(channel) : distribution_channel NOT NULL
-  COLUMN(status) : distribution_status NOT NULL
+  COLUMN(channel) : VARCHAR(50) NOT NULL
+  COLUMN(status) : VARCHAR(50) NOT NULL
   COLUMN(sent_at) : TIMESTAMPTZ
   COLUMN(error_message) : TEXT
   COLUMN(created_at) : TIMESTAMPTZ
 }
 note right of voucher_distributions
   channel: 'EMAIL' | 'SMS'
-  status: 'PENDING' | 'SENT' | 'FAILED'
+  status: 'PENDING' | 'SENT'
+  | 'FAILED' | 'CANCELLED'
 end note
 
 ' ========================================
-' 7. VOUCHER_USAGES
+' 11. VOUCHER_USAGES
 ' ========================================
 
 TABLE(voucher_usages) {
@@ -183,7 +256,7 @@ note right of voucher_usages
 end note
 
 ' ========================================
-' 8. API_KEYS
+' 12. API_KEYS
 ' ========================================
 
 TABLE(api_keys) {
@@ -194,6 +267,8 @@ TABLE(api_keys) {
   COLUMN(system_name) : VARCHAR(100) NOT NULL
   COLUMN(is_active) : BOOLEAN DEFAULT TRUE
   FK(created_by) : BIGINT NOT NULL
+  COLUMN(rate_limit_per_minute) : INT
+  COLUMN(rate_limit_per_day) : INT
   COLUMN(expires_at) : TIMESTAMPTZ
   COLUMN(created_at) : TIMESTAMPTZ
 }
@@ -201,10 +276,12 @@ note right of api_keys
   system_name:
   'POS_QUAN1' | 'ECOMMERCE_WEB'
   | 'MOBILE_APP' | ...
+  --
+  rate_limit_per_day = NULL: unlimited
 end note
 
 ' ========================================
-' 9. API_REQUEST_LOGS
+' 13. API_REQUEST_LOGS
 ' ========================================
 
 TABLE(api_request_logs) {
@@ -216,6 +293,7 @@ TABLE(api_request_logs) {
   COLUMN(request_body) : JSONB
   COLUMN(response_status) : INT
   COLUMN(response_body) : JSONB
+  COLUMN(response_time_ms) : BIGINT
   COLUMN(ip_address) : VARCHAR(45)
   COLUMN(created_at) : TIMESTAMPTZ
 }
@@ -223,6 +301,11 @@ TABLE(api_request_logs) {
 ' ========================================
 ' RELATIONSHIPS
 ' ========================================
+
+role_permissions }o--|| permissions : "permission_id"
+
+email_verification_tokens }o--|| users : "user_id"
+password_reset_tokens }o--|| users : "user_id"
 
 campaigns }o--|| users : "created_by"
 

@@ -26,6 +26,7 @@ logs/
 # Spring Boot
 application-prod.yml
 
+CLAUDE.md
 
 .claude
 .specify

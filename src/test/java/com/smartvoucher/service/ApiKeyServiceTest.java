@@ -19,6 +19,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +41,8 @@ class ApiKeyServiceTest {
     private UserRepository userRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private RateLimitService rateLimitService;
 
     @InjectMocks
     private ApiKeyService apiKeyService;
@@ -108,18 +116,20 @@ class ApiKeyServiceTest {
     }
 
     @Test
-    void getAll_returnsList() {
+    void getAll_returnsPage() {
         ApiKey key1 = new ApiKey();
         key1.setId(1L);
         key1.setName("Key 1");
         key1.setIsActive(true);
         key1.setCreatedBy(admin);
 
-        when(apiKeyRepository.findAll()).thenReturn(List.of(key1));
+        Pageable pageable = PageRequest.of(0, 20);
+        when(apiKeyRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(key1)));
 
-        List<ApiKeyResponse> result = apiKeyService.getAll();
+        Page<ApiKeyResponse> result = apiKeyService.getAll(null, pageable);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("Key 1");
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getName()).isEqualTo("Key 1");
     }
 }

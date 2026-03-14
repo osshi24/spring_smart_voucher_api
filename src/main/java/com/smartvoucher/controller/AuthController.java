@@ -79,19 +79,27 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    @Operation(summary = "Request password reset link via email")
+    @Operation(summary = "Request OTP code via email to reset password")
     public ResponseEntity<ApiResponse<Map<String, String>>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetService.forgotPassword(request.getEmail());
+        passwordResetService.forgotPasswordOtp(request.getEmail());
         return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "message", "If this email is registered, a reset link has been sent.")));
+                "message", "If this email is registered, an OTP has been sent.")));
+    }
+
+    @PostMapping("/verify-otp")
+    @Operation(summary = "Verify OTP and receive a reset token")
+    public ResponseEntity<ApiResponse<Map<String, String>>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+        String resetToken = passwordResetService.verifyOtp(request.getEmail(), request.getOtp());
+        return ResponseEntity.ok(ApiResponse.success(Map.of("resetToken", resetToken)));
     }
 
     @PostMapping("/reset-password")
-    @Operation(summary = "Reset password using token")
+    @Operation(summary = "Reset password using reset token from OTP verification")
     public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
-        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        passwordResetService.resetPasswordByOtp(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Password reset successfully.")));
     }
 
