@@ -14,11 +14,13 @@ import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -44,21 +46,15 @@ public class DistributionService {
         distribution.setStatus(DistributionStatus.PENDING);
 
         VoucherDistribution saved = distributionRepository.save(distribution);
-
-        // Simulate sending in background
         processDistribution(saved.getId());
-
         return DistributionResponse.from(saved);
     }
 
     @Transactional
     public void processDistribution(Long distributionId) {
-        VoucherDistribution dist = distributionRepository.findById(distributionId)
-                .orElse(null);
+        VoucherDistribution dist = distributionRepository.findById(distributionId).orElse(null);
         if (dist == null) return;
-
         try {
-            // Mock send - in production would call email/SMS service
             log.info("Sending voucher {} via {} to customer {}",
                     dist.getVoucher().getCode(), dist.getChannel(), dist.getCustomer().getFullName());
             dist.setStatus(DistributionStatus.SENT);
@@ -68,6 +64,12 @@ public class DistributionService {
             dist.setErrorMessage(e.getMessage());
         }
         distributionRepository.save(dist);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<DistributionResponse> getAll(Specification<VoucherDistribution> spec, Pageable pageable) {
+        return distributionRepository.findAll(spec != null ? spec : Specification.where(null), pageable)
+                .map(DistributionResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -81,25 +83,11 @@ public class DistributionService {
     public void cancel(Long id) {
         VoucherDistribution dist = distributionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Distribution not found: " + id));
-
         if (voucherUsageRepository.existsByVoucherIdAndCustomerId(
                 dist.getVoucher().getId(), dist.getCustomer().getId())) {
             throw new ConflictException("Cannot cancel: the voucher has already been redeemed by the customer.");
         }
-
         dist.setStatus(DistributionStatus.CANCELLED);
         distributionRepository.save(dist);
-    }
-
-    @Transactional(readOnly = true)
-    public List<DistributionResponse> getByVoucher(Long voucherId) {
-        return distributionRepository.findByVoucherId(voucherId)
-                .stream().map(DistributionResponse::from).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<DistributionResponse> getByStatus(DistributionStatus status) {
-        return distributionRepository.findByStatus(status)
-                .stream().map(DistributionResponse::from).toList();
     }
 }

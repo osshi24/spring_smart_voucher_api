@@ -10,6 +10,9 @@ import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.ApiKeyRepository;
 import com.smartvoucher.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +33,6 @@ public class ApiKeyService {
     @Transactional
     public ApiKeyResponse create(ApiKeyCreateRequest req) {
         User currentUser = getCurrentUser();
-
         byte[] randomBytes = new byte[32];
         new SecureRandom().nextBytes(randomBytes);
         String plainTextKey = "sv_live_" + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
@@ -50,10 +51,9 @@ public class ApiKeyService {
     }
 
     @Transactional(readOnly = true)
-    public List<ApiKeyResponse> getAll() {
-        return apiKeyRepository.findAll().stream()
-                .map(ApiKeyResponse::from)
-                .toList();
+    public Page<ApiKeyResponse> getAll(Specification<ApiKey> spec, Pageable pageable) {
+        return apiKeyRepository.findAll(spec != null ? spec : Specification.where(null), pageable)
+                .map(ApiKeyResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -67,12 +67,8 @@ public class ApiKeyService {
     public ApiKeyResponse updateRateLimit(Long id, RateLimitUpdateRequest request) {
         ApiKey apiKey = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("API key not found: " + id));
-        if (request.getRateLimitPerMinute() != null) {
-            apiKey.setRateLimitPerMinute(request.getRateLimitPerMinute());
-        }
-        if (request.getRateLimitPerDay() != null) {
-            apiKey.setRateLimitPerDay(request.getRateLimitPerDay());
-        }
+        if (request.getRateLimitPerMinute() != null) apiKey.setRateLimitPerMinute(request.getRateLimitPerMinute());
+        if (request.getRateLimitPerDay() != null) apiKey.setRateLimitPerDay(request.getRateLimitPerDay());
         return ApiKeyResponse.from(apiKeyRepository.save(apiKey));
     }
 
@@ -80,15 +76,11 @@ public class ApiKeyService {
     public ApiKeyUsageResponse getUsage(Long id) {
         ApiKey apiKey = apiKeyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("API key not found: " + id));
-
-        long todayUsage = rateLimitService.getDailyUsage(id);
-        long minuteUsage = rateLimitService.getMinuteUsage(id);
-
         return ApiKeyUsageResponse.builder()
                 .apiKeyId(id)
                 .name(apiKey.getName())
-                .todayRequests(todayUsage)
-                .thisMinuteRequests(minuteUsage)
+                .todayRequests(rateLimitService.getDailyUsage(id))
+                .thisMinuteRequests(rateLimitService.getMinuteUsage(id))
                 .limitPerMinute(apiKey.getRateLimitPerMinute())
                 .limitPerDay(apiKey.getRateLimitPerDay())
                 .build();

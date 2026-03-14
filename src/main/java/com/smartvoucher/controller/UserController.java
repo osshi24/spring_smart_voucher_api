@@ -3,7 +3,7 @@ package com.smartvoucher.controller;
 import com.smartvoucher.dto.request.UserUpdateRequest;
 import com.smartvoucher.dto.response.ApiResponse;
 import com.smartvoucher.dto.response.UserResponse;
-import com.smartvoucher.entity.enums.UserStatus;
+import com.smartvoucher.entity.User;
 import com.smartvoucher.service.PasswordResetService;
 import com.smartvoucher.service.UserRegistrationService;
 import com.smartvoucher.service.UserService;
@@ -11,8 +11,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import net.kaczmarzyk.spring.data.jpa.domain.*;
+import net.kaczmarzyk.spring.data.jpa.web.annotation.And;
+import net.kaczmarzyk.spring.data.jpa.web.annotation.Spec;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,11 +36,29 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('USER_READ')")
-    @Operation(summary = "List all users")
+    @Operation(summary = "List all users with filters")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAll(
-            @RequestParam(required = false) UserStatus status,
+            @And({
+                @Spec(spec = Equal.class,              params = "id",             path = "id"),
+                @Spec(spec = Like.class,               params = "username",       path = "username"),
+                @Spec(spec = Like.class,               params = "email",          path = "email"),
+                @Spec(spec = Like.class,               params = "fullName",       path = "fullName"),
+                @Spec(spec = Like.class,               params = "phone",          path = "phone"),
+                @Spec(spec = Equal.class,              params = "role",           path = "role"),
+                @Spec(spec = Equal.class,              params = "status",         path = "status"),
+                @Spec(spec = IsTrue.class,             params = "isActive",       path = "isActive"),
+                @Spec(spec = Equal.class,              params = "emailVerified",  path = "emailVerified"),
+                @Spec(spec = GreaterThanOrEqual.class, params = "createdAtFrom",  path = "createdAt",
+                        config = "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                @Spec(spec = LessThanOrEqual.class,    params = "createdAtTo",    path = "createdAt",
+                        config = "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                @Spec(spec = GreaterThanOrEqual.class, params = "updatedAtFrom",  path = "updatedAt",
+                        config = "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                @Spec(spec = LessThanOrEqual.class,    params = "updatedAtTo",    path = "updatedAt",
+                        config = "yyyy-MM-dd'T'HH:mm:ssXXX")
+            }) Specification<User> spec,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(userService.getAll(status, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(userService.getAll(spec, pageable)));
     }
 
     @GetMapping("/{id}")
@@ -50,14 +72,12 @@ public class UserController {
     @PreAuthorize("hasAuthority('USER_MANAGE')")
     @Operation(summary = "Update user fullName, email and role")
     public ResponseEntity<ApiResponse<UserResponse>> update(
-            @PathVariable Long id,
-            @Valid @RequestBody UserUpdateRequest request) {
+            @PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(userService.updateUser(id, request)));
     }
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('USER_APPROVE')")
-    @Operation(summary = "Approve a pending user account")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approve(@PathVariable Long id) {
         userRegistrationService.approveUser(id);
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "User approved successfully.", "userId", id)));
@@ -65,7 +85,6 @@ public class UserController {
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('USER_REJECT')")
-    @Operation(summary = "Reject a pending user account")
     public ResponseEntity<ApiResponse<Map<String, Object>>> reject(@PathVariable Long id) {
         userRegistrationService.rejectUser(id);
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "User rejected.", "userId", id)));
@@ -73,7 +92,6 @@ public class UserController {
 
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('ROLE_PERMISSION_MANAGE')")
-    @Operation(summary = "Admin reset password for a user")
     public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {
         passwordResetService.adminResetPassword(id);
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "Temporary password sent to user's email.")));

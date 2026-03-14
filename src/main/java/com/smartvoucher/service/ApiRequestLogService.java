@@ -21,17 +21,31 @@ public class ApiRequestLogService {
 
     private final ApiRequestLogRepository apiRequestLogRepository;
 
-    public Page<ApiRequestLog> findLogs(Long apiKeyId, OffsetDateTime from, OffsetDateTime to, Pageable pageable) {
+    public Page<ApiRequestLog> findLogs(Long id, Long apiKeyId, String method, String endpoint,
+                                         Integer responseStatus, String ipAddress,
+                                         Long responseTimeMsMin, Long responseTimeMsMax,
+                                         OffsetDateTime from, OffsetDateTime to, Pageable pageable) {
         Specification<ApiRequestLog> spec = Specification.where(null);
-        if (apiKeyId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("apiKey").get("id"), apiKeyId));
-        }
-        if (from != null) {
-            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from));
-        }
-        if (to != null) {
-            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to));
-        }
+        if (id != null)
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("id"), id));
+        if (apiKeyId != null)
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("apiKey").get("id"), apiKeyId));
+        if (method != null && !method.isBlank())
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("method"), method.toUpperCase()));
+        if (endpoint != null && !endpoint.isBlank())
+            spec = spec.and((root, q, cb) -> cb.like(root.get("endpoint"), "%" + endpoint + "%"));
+        if (responseStatus != null)
+            spec = spec.and((root, q, cb) -> cb.equal(root.get("responseStatus"), responseStatus));
+        if (ipAddress != null && !ipAddress.isBlank())
+            spec = spec.and((root, q, cb) -> cb.like(root.get("ipAddress"), "%" + ipAddress + "%"));
+        if (responseTimeMsMin != null)
+            spec = spec.and((root, q, cb) -> cb.greaterThanOrEqualTo(root.get("responseTimeMs"), responseTimeMsMin));
+        if (responseTimeMsMax != null)
+            spec = spec.and((root, q, cb) -> cb.lessThanOrEqualTo(root.get("responseTimeMs"), responseTimeMsMax));
+        if (from != null)
+            spec = spec.and((root, q, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+        if (to != null)
+            spec = spec.and((root, q, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to));
         return apiRequestLogRepository.findAll(spec, pageable);
     }
 
@@ -48,10 +62,7 @@ public class ApiRequestLogService {
             logEntry.setResponseStatus(responseStatus);
             logEntry.setResponseBody(responseBody);
             logEntry.setIpAddress(ipAddress);
-            if (apiKeyId != null) {
-                // We'll set apiKeyId via a simple holder
-                logEntry.setApiKeyId(apiKeyId);
-            }
+            if (apiKeyId != null) logEntry.setApiKeyId(apiKeyId);
             apiRequestLogRepository.save(logEntry);
         } catch (Exception e) {
             log.warn("Failed to log API request: {}", e.getMessage());

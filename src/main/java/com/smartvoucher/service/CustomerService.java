@@ -71,25 +71,50 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CustomerVoucherResponse> getCustomerVouchers(Long customerId, Pageable pageable) {
+    public Page<CustomerVoucherResponse> getCustomerVouchers(Long customerId, String voucherCode,
+                                                              String discountType, Pageable pageable) {
         if (!customerRepository.existsById(customerId)) {
             throw new ResourceNotFoundException("Customer not found: " + customerId);
         }
-        return voucherCustomerRepository.findByCustomerId(customerId, pageable)
+        org.springframework.data.jpa.domain.Specification<com.smartvoucher.entity.VoucherCustomer> spec =
+                (root, query, cb) -> cb.equal(root.get("customer").get("id"), customerId);
+        if (voucherCode != null && !voucherCode.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.like(cb.lower(root.get("voucher").get("code")), "%" + voucherCode.toLowerCase() + "%"));
+        }
+        if (discountType != null && !discountType.isBlank()) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("voucher").get("discountType").as(String.class), discountType));
+        }
+        final Long cid = customerId;
+        return voucherCustomerRepository.findAll(spec, pageable)
                 .map(vc -> {
                     boolean used = voucherUsageRepository.existsByVoucherIdAndCustomerId(
-                            vc.getVoucher().getId(), customerId);
+                            vc.getVoucher().getId(), cid);
                     return CustomerVoucherResponse.from(vc, used);
                 });
     }
 
     @Transactional(readOnly = true)
-    public Page<CustomerUsageResponse> getCustomerUsages(Long customerId, Pageable pageable) {
+    public Page<CustomerUsageResponse> getCustomerUsages(Long customerId, Long voucherId,
+                                                          java.time.OffsetDateTime usedAtFrom,
+                                                          java.time.OffsetDateTime usedAtTo,
+                                                          Pageable pageable) {
         if (!customerRepository.existsById(customerId)) {
             throw new ResourceNotFoundException("Customer not found: " + customerId);
         }
-        return voucherUsageRepository.findByCustomerId(customerId, pageable)
-                .map(CustomerUsageResponse::from);
+        org.springframework.data.jpa.domain.Specification<com.smartvoucher.entity.VoucherUsage> spec =
+                (root, query, cb) -> cb.equal(root.get("customer").get("id"), customerId);
+        if (voucherId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("voucher").get("id"), voucherId));
+        }
+        if (usedAtFrom != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("usedAt"), usedAtFrom));
+        }
+        if (usedAtTo != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("usedAt"), usedAtTo));
+        }
+        return voucherUsageRepository.findAll(spec, pageable).map(CustomerUsageResponse::from);
     }
 
     @Transactional

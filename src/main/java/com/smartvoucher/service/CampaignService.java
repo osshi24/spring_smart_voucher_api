@@ -13,6 +13,7 @@ import com.smartvoucher.repository.UserRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -100,11 +101,30 @@ public class CampaignService {
     }
 
     @Transactional(readOnly = true)
-    public Page<VoucherResponse> getCampaignVouchers(Long campaignId, Pageable pageable) {
+    public Page<VoucherResponse> getCampaignVouchers(Long campaignId, String code, String status,
+                                                      String discountType, java.time.OffsetDateTime validFrom,
+                                                      java.time.OffsetDateTime validUntil, Pageable pageable) {
         if (!campaignRepository.existsById(campaignId)) {
             throw new ResourceNotFoundException("Campaign not found: " + campaignId);
         }
-        return voucherRepository.findByCampaignId(campaignId, pageable).map(VoucherResponse::from);
+        Specification<com.smartvoucher.entity.Voucher> spec =
+                (root, query, cb) -> cb.equal(root.get("campaign").get("id"), campaignId);
+        if (code != null && !code.isBlank()) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("code")), "%" + code.toLowerCase() + "%"));
+        }
+        if (status != null && !status.isBlank()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status").as(String.class), status));
+        }
+        if (discountType != null && !discountType.isBlank()) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("discountType").as(String.class), discountType));
+        }
+        if (validFrom != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("validFrom"), validFrom));
+        }
+        if (validUntil != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("validUntil"), validUntil));
+        }
+        return voucherRepository.findAll(spec, pageable).map(VoucherResponse::from);
     }
 
     @Transactional

@@ -26,13 +26,21 @@ public class RequestLogController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('REQUEST_LOG_READ')")
-    @Operation(summary = "Query API request logs")
+    @Operation(summary = "Query API request logs with full filters")
     public ResponseEntity<ApiResponse<Page<ApiRequestLog>>> getLogs(
+            @RequestParam(required = false) Long id,
             @RequestParam(required = false) Long apiKeyId,
+            @RequestParam(required = false) String method,
+            @RequestParam(required = false) String endpoint,
+            @RequestParam(required = false) Integer responseStatus,
+            @RequestParam(required = false) String ipAddress,
+            @RequestParam(required = false) Long responseTimeMsMin,
+            @RequestParam(required = false) Long responseTimeMsMax,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
             @PageableDefault(size = 50) Pageable pageable) {
-        Page<ApiRequestLog> logs = apiRequestLogService.findLogs(apiKeyId, from, to, pageable);
-        return ResponseEntity.ok(ApiResponse.success(logs));
+        return ResponseEntity.ok(ApiResponse.success(
+                apiRequestLogService.findLogs(id, apiKeyId, method, endpoint, responseStatus,
+                        ipAddress, responseTimeMsMin, responseTimeMsMax, from, to, pageable)));
     }
 }
