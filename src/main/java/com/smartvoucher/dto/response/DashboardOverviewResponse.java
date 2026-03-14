@@ -1,15 +1,14 @@
 package com.smartvoucher.dto.response;
 
-import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Getter
-@Setter
-@AllArgsConstructor
+@Builder
 public class DashboardOverviewResponse {
 
     private long totalVouchers;
@@ -17,4 +16,7 @@ public class DashboardOverviewResponse {
     private long totalUsages;
     private BigDecimal totalDiscountAmount;
     private List<VoucherResponse> topVouchers;
+    private double conversionRate;
+    private Map<String, BigDecimal> revenueByDay;
+    private Long activeMerchantCount;
 }

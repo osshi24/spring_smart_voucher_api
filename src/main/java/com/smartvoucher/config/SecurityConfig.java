@@ -1,5 +1,6 @@
 package com.smartvoucher.config;
 
+import com.smartvoucher.filter.JwtRateLimitFilter;
 import com.smartvoucher.filter.RateLimitFilter;
 import com.smartvoucher.filter.RequestTrackingFilter;
 import com.smartvoucher.security.ApiKeyAuthenticationFilter;
@@ -37,6 +38,7 @@ public class SecurityConfig {
     private final RequestTrackingFilter requestTrackingFilter;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtRateLimitFilter jwtRateLimitFilter;
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -62,14 +64,17 @@ public class SecurityConfig {
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/register",
+                                "/api/v1/auth/register-merchant",
                                 "/api/v1/auth/verify-email",
+                                "/api/v1/auth/resend-verification",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/verify-otp",
                                 "/api/v1/auth/reset-password",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/api-docs/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/actuator/health"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
@@ -84,7 +89,8 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class)
                 .addFilterAfter(rateLimitFilter, ApiKeyAuthenticationFilter.class)
-                .addFilterAfter(requestTrackingFilter, RateLimitFilter.class);
+                .addFilterAfter(requestTrackingFilter, RateLimitFilter.class)
+                .addFilterAfter(jwtRateLimitFilter, RequestTrackingFilter.class);
 
         return http.build();
     }

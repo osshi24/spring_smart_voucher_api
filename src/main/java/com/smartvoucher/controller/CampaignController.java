@@ -8,6 +8,8 @@ import com.smartvoucher.dto.response.VoucherResponse;
 import com.smartvoucher.entity.Campaign;
 import com.smartvoucher.entity.enums.CampaignStatus;
 import com.smartvoucher.service.CampaignService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import net.kaczmarzyk.spring.data.jpa.domain.*;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.OffsetDateTime;
 
+@Tag(name = "Chiến dịch", description = "Quản lý chiến dịch khuyến mãi")
 @RestController
 @RequestMapping("/api/v1/campaigns")
 @RequiredArgsConstructor
@@ -32,6 +35,7 @@ public class CampaignController {
 
     private final CampaignService campaignService;
 
+    @Operation(summary = "Tạo chiến dịch khuyến mãi mới")
     @PreAuthorize("hasAuthority('CAMPAIGN_CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<CampaignResponse>> create(@Valid @RequestBody CampaignCreateRequest request) {
@@ -39,6 +43,7 @@ public class CampaignController {
                 .body(ApiResponse.success(campaignService.create(request)));
     }
 
+    @Operation(summary = "Lấy danh sách chiến dịch (có bộ lọc)")
     @PreAuthorize("hasAuthority('CAMPAIGN_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<CampaignResponse>>> getAll(
@@ -66,12 +71,14 @@ public class CampaignController {
         return ResponseEntity.ok(ApiResponse.success(campaignService.getAll(spec, pageable)));
     }
 
+    @Operation(summary = "Lấy chi tiết chiến dịch theo ID")
     @PreAuthorize("hasAuthority('CAMPAIGN_READ')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CampaignResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(campaignService.getById(id)));
     }
 
+    @Operation(summary = "Cập nhật thông tin chiến dịch")
     @PreAuthorize("hasAuthority('CAMPAIGN_UPDATE')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<CampaignResponse>> update(
@@ -79,6 +86,7 @@ public class CampaignController {
         return ResponseEntity.ok(ApiResponse.success(campaignService.update(id, request)));
     }
 
+    @Operation(summary = "Cập nhật trạng thái chiến dịch (DRAFT/ACTIVE/PAUSED/ENDED)")
     @PreAuthorize("hasAuthority('CAMPAIGN_UPDATE')")
     @PutMapping("/{id}/status")
     public ResponseEntity<ApiResponse<CampaignResponse>> updateStatus(
@@ -86,12 +94,14 @@ public class CampaignController {
         return ResponseEntity.ok(ApiResponse.success(campaignService.updateStatus(id, status)));
     }
 
+    @Operation(summary = "Xem thống kê hiệu quả của chiến dịch")
     @PreAuthorize("hasAuthority('CAMPAIGN_READ')")
     @GetMapping("/{id}/stats")
     public ResponseEntity<ApiResponse<CampaignStatsResponse>> getStats(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(campaignService.getStats(id)));
     }
 
+    @Operation(summary = "Lấy danh sách voucher thuộc chiến dịch")
     @PreAuthorize("hasAuthority('CAMPAIGN_READ')")
     @GetMapping("/{id}/vouchers")
     public ResponseEntity<ApiResponse<Page<VoucherResponse>>> getCampaignVouchers(
@@ -106,10 +116,19 @@ public class CampaignController {
                 campaignService.getCampaignVouchers(id, code, status, discountType, validFrom, validUntil, pageable)));
     }
 
+    @Operation(summary = "Xóa chiến dịch")
     @PreAuthorize("hasAuthority('CAMPAIGN_DELETE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         campaignService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Nhân bản chiến dịch")
+    @PreAuthorize("hasAuthority('CAMPAIGN_CREATE')")
+    @PostMapping("/{id}/clone")
+    public ResponseEntity<ApiResponse<CampaignResponse>> cloneCampaign(@PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(campaignService.clone(id)));
     }
 }

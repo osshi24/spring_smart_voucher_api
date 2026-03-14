@@ -7,6 +7,8 @@ import com.smartvoucher.dto.response.ApiKeyUsageResponse;
 import com.smartvoucher.dto.response.ApiResponse;
 import com.smartvoucher.entity.ApiKey;
 import com.smartvoucher.service.ApiKeyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import net.kaczmarzyk.spring.data.jpa.domain.*;
@@ -21,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "API Key", description = "Quản lý API key dùng để xác thực POS và hệ thống bên ngoài")
 @RestController
 @RequestMapping("/api/v1/api-keys")
 @RequiredArgsConstructor
@@ -28,6 +31,7 @@ public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
 
+    @Operation(summary = "Tạo API key mới")
     @PreAuthorize("hasAuthority('APIKEY_CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<ApiKeyResponse>> create(@Valid @RequestBody ApiKeyCreateRequest request) {
@@ -35,6 +39,7 @@ public class ApiKeyController {
                 .body(ApiResponse.success(apiKeyService.create(request)));
     }
 
+    @Operation(summary = "Lấy danh sách API key (có bộ lọc)")
     @PreAuthorize("hasAuthority('APIKEY_CREATE') or hasAuthority('APIKEY_DEACTIVATE')")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ApiKeyResponse>>> getAll(
@@ -60,18 +65,21 @@ public class ApiKeyController {
         return ResponseEntity.ok(ApiResponse.success(apiKeyService.getAll(spec, pageable)));
     }
 
+    @Operation(summary = "Lấy chi tiết API key theo ID")
     @PreAuthorize("hasAuthority('APIKEY_CREATE')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(apiKeyService.getById(id)));
     }
 
+    @Operation(summary = "Xem thống kê sử dụng của API key")
     @PreAuthorize("hasAuthority('APIKEY_CREATE')")
     @GetMapping("/{id}/usage")
     public ResponseEntity<ApiResponse<ApiKeyUsageResponse>> getUsage(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(apiKeyService.getUsage(id)));
     }
 
+    @Operation(summary = "Cập nhật giới hạn tốc độ (rate limit) của API key")
     @PreAuthorize("hasAuthority('APIKEY_CREATE')")
     @PutMapping("/{id}/rate-limit")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> updateRateLimit(
@@ -79,6 +87,7 @@ public class ApiKeyController {
         return ResponseEntity.ok(ApiResponse.success(apiKeyService.updateRateLimit(id, request)));
     }
 
+    @Operation(summary = "Vô hiệu hóa API key")
     @PreAuthorize("hasAuthority('APIKEY_DEACTIVATE')")
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<ApiResponse<ApiKeyResponse>> deactivate(@PathVariable Long id) {

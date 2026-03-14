@@ -7,16 +7,17 @@ import com.smartvoucher.dto.response.VoucherResponse;
 import com.smartvoucher.entity.Campaign;
 import com.smartvoucher.entity.User;
 import com.smartvoucher.entity.enums.CampaignStatus;
+import com.smartvoucher.entity.enums.UserRole;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.CampaignRepository;
 import com.smartvoucher.repository.UserRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
+import com.smartvoucher.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class CampaignService {
     private final UserRepository userRepository;
     private final VoucherRepository voucherRepository;
     private final VoucherUsageRepository voucherUsageRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public CampaignResponse create(CampaignCreateRequest req) {
@@ -54,7 +56,7 @@ public class CampaignService {
 
     @Transactional(readOnly = true)
     public Page<CampaignResponse> getAll(Specification<Campaign> spec, Pageable pageable) {
-        return campaignRepository.findAll(spec != null ? spec : Specification.where(null), pageable).map(CampaignResponse::from);
+        return campaignRepository.findAll(withOwnerFilter(spec), pageable).map(CampaignResponse::from);
     }
 
     @Transactional(readOnly = true)
@@ -78,8 +80,11 @@ public class CampaignService {
     @Transactional
     public CampaignResponse updateStatus(Long id, CampaignStatus newStatus) {
         Campaign campaign = findById(id);
+        CampaignStatus oldStatus = campaign.getStatus();
         campaign.setStatus(newStatus);
-        return CampaignResponse.from(campaignRepository.save(campaign));
+        CampaignResponse result = CampaignResponse.from(campaignRepository.save(campaign));
+        auditLogService.log("STATUS_CHANGE", "Campaign", id, oldStatus, newStatus);
+        return result;
     }
 
     @Transactional(readOnly = true)
@@ -104,9 +109,7 @@ public class CampaignService {
     public Page<VoucherResponse> getCampaignVouchers(Long campaignId, String code, String status,
                                                       String discountType, java.time.OffsetDateTime validFrom,
                                                       java.time.OffsetDateTime validUntil, Pageable pageable) {
-        if (!campaignRepository.existsById(campaignId)) {
-            throw new ResourceNotFoundException("Campaign not found: " + campaignId);
-        }
+        findById(campaignId); // ownership check
         Specification<com.smartvoucher.entity.Voucher> spec =
                 (root, query, cb) -> cb.equal(root.get("campaign").get("id"), campaignId);
         if (code != null && !code.isBlank()) {
@@ -133,9 +136,48 @@ public class CampaignService {
         campaignRepository.delete(campaign);
     }
 
+    @Transactional
+    public CampaignResponse clone(Long id) {
+        Campaign original = findById(id);
+        User currentUser = getCurrentUser();
+        Campaign cloned = new Campaign();
+        cloned.setName("Copy of " + original.getName());
+        cloned.setDescription(original.getDescription());
+        cloned.setBudget(original.getBudget());
+        cloned.setStartDate(original.getStartDate());
+        cloned.setEndDate(original.getEndDate());
+        cloned.setStatus(CampaignStatus.DRAFT);
+        cloned.setCreatedBy(currentUser);
+        return CampaignResponse.from(campaignRepository.save(cloned));
+    }
+
     private Campaign findById(Long id) {
-        return campaignRepository.findById(id)
+        Campaign campaign = campaignRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign not found: " + id));
+        checkOwnership(campaign);
+        return campaign;
+    }
+
+    private void checkOwnership(Campaign campaign) {
+        User currentUser = getCurrentUser();
+        if (isRestricted(currentUser)
+                && !campaign.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new ResourceNotFoundException("Campaign not found: " + campaign.getId());
+        }
+    }
+
+    private Specification<Campaign> withOwnerFilter(Specification<Campaign> spec) {
+        User currentUser = getCurrentUser();
+        if (isRestricted(currentUser)) {
+            User owner = currentUser;
+            Specification<Campaign> ownerSpec = (root, query, cb) -> cb.equal(root.get("createdBy"), owner);
+            return spec == null ? ownerSpec : spec.and(ownerSpec);
+        }
+        return spec != null ? spec : Specification.where(null);
+    }
+
+    private boolean isRestricted(User user) {
+        return user.getRole() == UserRole.STAFF || user.getRole() == UserRole.USER;
     }
 
     private User getCurrentUser() {

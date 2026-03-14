@@ -31,7 +31,6 @@ Tạo file `.env` (tuỳ chọn) để cấu hình email và JWT:
 JWT_SECRET=smartvoucher-secret-key-must-be-at-least-256-bits-long-for-hs256
 MAIL_USERNAME=your-email@gmail.com
 MAIL_PASSWORD=your-app-password
-APP_BASE_URL=http://localhost:8080
 ```
 
 ```bash
@@ -158,7 +157,7 @@ Các filter có thể kết hợp tự do. Chỉ truyền param nào cần lọc
 | `email` | Like | Email |
 | `fullName` | Like | Họ tên |
 | `phone` | Like | Số điện thoại |
-| `role` | Equal | `ADMIN` / `STAFF` |
+| `role` | Equal | `ADMIN` / `STAFF` / `USER` |
 | `status` | Equal | `ACTIVE` / `PENDING` / `REJECTED` / `SUSPENDED` |
 | `isActive` | Boolean | `true` / `false` |
 | `emailVerified` | Equal | `true` / `false` |
@@ -208,35 +207,37 @@ Các endpoint lồng nhau cũng hỗ trợ filter:
 
 ### Vai trò
 
-| Role | Mô tả | Cách tạo |
-|------|-------|----------|
-| `ADMIN` | Toàn quyền hệ thống | ADMIN tạo thủ công |
-| `STAFF` | Quyền vận hành — không quản lý user, log | Đăng ký (`/auth/register`) → xác minh email → tự động ACTIVE |
-| `USER` | Chỉ đọc (xem voucher, campaign, customer) | ADMIN tạo thủ công |
+| Role | Mô tả | Cách tạo | Data isolation |
+| ---- | ----- | -------- | -------------- |
+| `ADMIN` | Toàn quyền hệ thống | Tạo thủ công trong DB | Xem tất cả data |
+| `STAFF` | Vận hành — tạo/sửa voucher, campaign, customer, API key | Đăng ký (`/auth/register`) → xác minh email → tự động ACTIVE | Chỉ thấy data của mình |
+| `USER` | Merchant — tương tự STAFF, không có quyền xóa | Đăng ký (`/auth/register-merchant`) → xác minh email → tự động ACTIVE | Chỉ thấy data của mình |
 
-> **Hệ thống ngoài (POS, e-commerce)** không dùng user account. Chúng xác thực bằng **API key** qua header `X-API-Key`. ADMIN hoặc STAFF tạo API key và cấp cho hệ thống ngoài.
+> **STAFF và USER** đều bị **data isolation**: mỗi tài khoản chỉ thấy voucher, campaign, customer, API key, distribution do chính mình tạo.
+>
+> **Hệ thống ngoài (POS, e-commerce)** xác thực bằng **API key** qua header `X-API-Key`. STAFF hoặc USER tạo API key và cấp cho hệ thống của mình.
 
 ### Danh sách Permission
 
 | Permission | ADMIN | STAFF | USER |
 |-----------|:-----:|:-----:|:----:|
 | `VOUCHER_READ` | ✅ | ✅ | ✅ |
-| `VOUCHER_CREATE` | ✅ | ✅ | ❌ |
-| `VOUCHER_UPDATE` | ✅ | ✅ | ❌ |
+| `VOUCHER_CREATE` | ✅ | ✅ | ✅ |
+| `VOUCHER_UPDATE` | ✅ | ✅ | ✅ |
 | `VOUCHER_DELETE` | ✅ | ❌ | ❌ |
 | `CAMPAIGN_READ` | ✅ | ✅ | ✅ |
-| `CAMPAIGN_CREATE` | ✅ | ✅ | ❌ |
-| `CAMPAIGN_UPDATE` | ✅ | ✅ | ❌ |
+| `CAMPAIGN_CREATE` | ✅ | ✅ | ✅ |
+| `CAMPAIGN_UPDATE` | ✅ | ✅ | ✅ |
 | `CAMPAIGN_DELETE` | ✅ | ❌ | ❌ |
 | `CUSTOMER_READ` | ✅ | ✅ | ✅ |
-| `CUSTOMER_CREATE` | ✅ | ✅ | ❌ |
-| `CUSTOMER_UPDATE` | ✅ | ✅ | ❌ |
+| `CUSTOMER_CREATE` | ✅ | ✅ | ✅ |
+| `CUSTOMER_UPDATE` | ✅ | ✅ | ✅ |
 | `CUSTOMER_DELETE` | ✅ | ❌ | ❌ |
-| `DISTRIBUTION_READ` | ✅ | ✅ | ❌ |
-| `DISTRIBUTION_CREATE` | ✅ | ✅ | ❌ |
-| `APIKEY_CREATE` | ✅ | ✅ | ❌ |
-| `APIKEY_DEACTIVATE` | ✅ | ❌ | ❌ |
-| `DASHBOARD_READ` | ✅ | ✅ | ❌ |
+| `DISTRIBUTION_READ` | ✅ | ✅ | ✅ |
+| `DISTRIBUTION_CREATE` | ✅ | ✅ | ✅ |
+| `APIKEY_CREATE` | ✅ | ✅ | ✅ |
+| `APIKEY_DEACTIVATE` | ✅ | ✅ | ✅ |
+| `DASHBOARD_READ` | ✅ | ✅ | ✅ |
 | `USER_READ` | ✅ | ❌ | ❌ |
 | `USER_APPROVE` | ✅ | ❌ | ❌ |
 | `USER_REJECT` | ✅ | ❌ | ❌ |
@@ -247,6 +248,9 @@ Các endpoint lồng nhau cũng hỗ trợ filter:
 ### Tài khoản mặc định
 
 | Username | Password | Role |
-|----------|----------|------|
-| `admin01` | `Admin@123` | ADMIN |
-| `staff01` | `Staff@123` | STAFF |
+| -------- | -------- | ---- |
+| `admin01` | `admin123` | ADMIN |
+| `staff01` | `staff123` | STAFF |
+| `merchant01` | `staff123` | USER |
+
+> Tài khoản USER (merchant) tự đăng ký qua `POST /api/v1/auth/register-merchant`.

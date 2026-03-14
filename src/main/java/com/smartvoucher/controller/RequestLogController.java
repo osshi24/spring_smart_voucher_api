@@ -19,14 +19,14 @@ import java.time.OffsetDateTime;
 @RestController
 @RequestMapping("/api/v1/request-logs")
 @RequiredArgsConstructor
-@Tag(name = "Request Logs", description = "API request tracking and audit logs")
+@Tag(name = "Request Log", description = "Theo dõi và tra cứu lịch sử API request từ POS và hệ thống bên ngoài")
 public class RequestLogController {
 
     private final ApiRequestLogService apiRequestLogService;
 
     @GetMapping
     @PreAuthorize("hasAuthority('REQUEST_LOG_READ')")
-    @Operation(summary = "Query API request logs with full filters")
+    @Operation(summary = "Tra cứu lịch sử API request với bộ lọc đầy đủ")
     public ResponseEntity<ApiResponse<Page<ApiRequestLog>>> getLogs(
             @RequestParam(required = false) Long id,
             @RequestParam(required = false) Long apiKeyId,

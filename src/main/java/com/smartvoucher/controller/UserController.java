@@ -27,7 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "User Management", description = "Admin endpoints for managing user accounts")
+@Tag(name = "Quản lý người dùng", description = "Admin quản lý tài khoản người dùng trong hệ thống")
 public class UserController {
 
     private final UserService userService;
@@ -36,7 +36,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('USER_READ')")
-    @Operation(summary = "List all users with filters")
+    @Operation(summary = "Lấy danh sách người dùng (có bộ lọc)")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAll(
             @And({
                 @Spec(spec = Equal.class,              params = "id",             path = "id"),
@@ -63,19 +63,20 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('USER_READ')")
-    @Operation(summary = "Get user details by ID")
+    @Operation(summary = "Lấy chi tiết thông tin người dùng theo ID")
     public ResponseEntity<ApiResponse<UserResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(userService.getById(id)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('USER_MANAGE')")
-    @Operation(summary = "Update user fullName, email and role")
+    @Operation(summary = "Cập nhật thông tin người dùng (họ tên, email, vai trò)")
     public ResponseEntity<ApiResponse<UserResponse>> update(
             @PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(userService.updateUser(id, request)));
     }
 
+    @Operation(summary = "Duyệt tài khoản đăng ký đang chờ phê duyệt")
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('USER_APPROVE')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> approve(@PathVariable Long id) {
@@ -83,6 +84,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "User approved successfully.", "userId", id)));
     }
 
+    @Operation(summary = "Từ chối đăng ký tài khoản")
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('USER_REJECT')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> reject(@PathVariable Long id) {
@@ -90,6 +92,7 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(Map.of("message", "User rejected.", "userId", id)));
     }
 
+    @Operation(summary = "Admin đặt lại mật khẩu tạm thời và gửi qua email cho người dùng")
     @PostMapping("/{id}/reset-password")
     @PreAuthorize("hasAuthority('ROLE_PERMISSION_MANAGE')")
     public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {

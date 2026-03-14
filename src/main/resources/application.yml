@@ -38,3 +38,30 @@ server:
   error:
     include-message: always
     include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
+scheduler:
+  voucher-expiry:
+    cron: "0 0 1 * * ?"
+
+rate-limit:
+  jwt:
+    requests-per-minute: 60
+
+webhook:
+  max-retries: 3
+  connect-timeout-ms: 5000
+
+api-key:
+  max-per-merchant: 10

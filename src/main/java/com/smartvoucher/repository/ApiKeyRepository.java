@@ -13,4 +13,5 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, Long>, JpaSpecif
     Optional<ApiKey> findByKeyHash(String keyHash);
     List<ApiKey> findByIsActiveTrue();
     boolean existsByKeyHash(String keyHash);
+    long countByCreatedByIdAndIsActiveTrue(Long userId);
 }

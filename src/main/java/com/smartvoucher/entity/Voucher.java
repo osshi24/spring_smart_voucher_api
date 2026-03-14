@@ -1,5 +1,6 @@
 package com.smartvoucher.entity;
 
+import com.smartvoucher.entity.enums.CodeType;
 import com.smartvoucher.entity.enums.DiscountType;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -82,6 +83,11 @@ public class Voucher {
 
     @Column(name = "valid_until", nullable = false)
     private OffsetDateTime validUntil;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "code_type", nullable = false, length = 10)
+    @Builder.Default
+    private CodeType codeType = CodeType.SHARED;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)

@@ -16,8 +16,11 @@ public class VoucherValidateRequest {
     @NotBlank(message = "Voucher code is required")
     private String voucherCode;
 
-    @NotNull(message = "Customer ID is required")
+    /** Internal customerId — mutually exclusive with customerRef */
     private Long customerId;
+
+    /** Flexible identifier: email, phone, externalId, or internal ID as string */
+    private String customerRef;
 
     @NotNull(message = "Order total is required")
     @Positive(message = "Order total must be positive")

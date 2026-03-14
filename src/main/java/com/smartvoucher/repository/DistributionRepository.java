@@ -13,4 +13,5 @@ public interface DistributionRepository extends JpaRepository<VoucherDistributio
     List<VoucherDistribution> findByVoucherId(Long voucherId);
     List<VoucherDistribution> findByStatus(DistributionStatus status);
     List<VoucherDistribution> findByCustomerId(Long customerId);
+    boolean existsByVoucherIdAndCustomerId(Long voucherId, Long customerId);
 }

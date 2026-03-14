@@ -17,6 +17,7 @@ public class VoucherValidateResponse {
     private BigDecimal discountAmount;
     private BigDecimal maxDiscountAmount;
     private String message;
+    private Boolean idempotent;
 
     public static VoucherValidateResponse valid(String code, DiscountType type, BigDecimal value,
                                                  BigDecimal amount, BigDecimal maxAmount) {

@@ -39,4 +39,7 @@ public interface VoucherUsageRepository extends JpaRepository<VoucherUsage, Long
     List<VoucherUsage> findByUsedAtBetween(
             @Param("from") OffsetDateTime from,
             @Param("to") OffsetDateTime to);
+
+    @Query("SELECT COUNT(DISTINCT u.voucher.createdBy.id) FROM VoucherUsage u")
+    long countDistinctMerchantsWithUsage();
 }

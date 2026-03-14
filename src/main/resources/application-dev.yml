@@ -35,8 +35,6 @@ app:
   rate-limit:
     default-per-minute: 100
   email:
-    verification-expiry-hours: 24
-    reset-token-expiry-hours: 1
     otp-expiry-minutes: 15
     otp-max-attempts: 5
   base-url: http://localhost:8080

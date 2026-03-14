@@ -1,14 +1,23 @@
 package com.smartvoucher.controller;
 
+import com.smartvoucher.dto.request.BulkAssignRequest;
+import com.smartvoucher.dto.request.UniqueCodeGenerateRequest;
 import com.smartvoucher.dto.request.VoucherCreateRequest;
 import com.smartvoucher.dto.request.VoucherUpdateRequest;
 import com.smartvoucher.dto.response.ApiResponse;
+import com.smartvoucher.dto.response.BulkDistributeResponse;
+import com.smartvoucher.dto.response.BulkOperationResponse;
+import com.smartvoucher.dto.response.UniqueCodeGenerateResponse;
 import com.smartvoucher.dto.response.VoucherCustomerResponse;
 import com.smartvoucher.dto.response.VoucherResponse;
 import com.smartvoucher.dto.response.VoucherUsageResponse;
 import com.smartvoucher.entity.Voucher;
+import com.smartvoucher.service.ExportService;
 import com.smartvoucher.service.VoucherAssignmentService;
+import com.smartvoucher.service.VoucherCodeService;
 import com.smartvoucher.service.VoucherService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import net.kaczmarzyk.spring.data.jpa.domain.*;
@@ -30,17 +39,22 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/vouchers")
 @RequiredArgsConstructor
+@Tag(name = "Voucher", description = "Quản lý voucher khuyến mãi: tạo, phân phối, pause/resume và theo dõi")
 public class VoucherController {
 
     private final VoucherService voucherService;
     private final VoucherAssignmentService voucherAssignmentService;
+    private final ExportService exportService;
+    private final VoucherCodeService voucherCodeService;
 
+    @Operation(summary = "Tạo voucher khuyến mãi mới")
     @PreAuthorize("hasAuthority('VOUCHER_CREATE')")
     @PostMapping
     public ResponseEntity<ApiResponse<VoucherResponse>> create(@Valid @RequestBody VoucherCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(voucherService.create(request)));
     }
 
+    @Operation(summary = "Lấy danh sách voucher (có bộ lọc)")
     @PreAuthorize("hasAuthority('VOUCHER_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<VoucherResponse>>> getAll(
@@ -69,12 +83,14 @@ public class VoucherController {
         return ResponseEntity.ok(ApiResponse.success(voucherService.getAll(spec, pageable)));
     }
 
+    @Operation(summary = "Lấy chi tiết voucher theo ID")
     @PreAuthorize("hasAuthority('VOUCHER_READ')")
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<VoucherResponse>> getById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(voucherService.getById(id)));
     }
 
+    @Operation(summary = "Cập nhật thông tin voucher")
     @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<VoucherResponse>> update(
@@ -82,6 +98,7 @@ public class VoucherController {
         return ResponseEntity.ok(ApiResponse.success(voucherService.update(id, request)));
     }
 
+    @Operation(summary = "Xóa voucher (chỉ khi chưa có lượt dùng)")
     @PreAuthorize("hasAuthority('VOUCHER_DELETE')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -89,6 +106,7 @@ public class VoucherController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Gán danh sách khách hàng vào voucher")
     @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
     @PostMapping("/{id}/customers")
     public ResponseEntity<ApiResponse<Void>> assignCustomers(
@@ -97,6 +115,7 @@ public class VoucherController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @Operation(summary = "Lấy danh sách khách hàng được gán voucher này")
     @PreAuthorize("hasAuthority('VOUCHER_READ')")
     @GetMapping("/{id}/customers")
     public ResponseEntity<ApiResponse<Page<VoucherCustomerResponse>>> getVoucherCustomers(
@@ -108,6 +127,7 @@ public class VoucherController {
                 voucherAssignmentService.getVoucherCustomers(id, customerName, customerEmail, pageable)));
     }
 
+    @Operation(summary = "Thu hồi quyền dùng voucher của một khách hàng")
     @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
     @DeleteMapping("/{id}/customers/{customerId}")
     public ResponseEntity<ApiResponse<String>> revokeAssignment(
@@ -116,6 +136,7 @@ public class VoucherController {
         return ResponseEntity.ok(ApiResponse.success("Assignment revoked."));
     }
 
+    @Operation(summary = "Lấy lịch sử sử dụng của voucher")
     @PreAuthorize("hasAuthority('VOUCHER_READ')")
     @GetMapping("/{id}/usages")
     public ResponseEntity<ApiResponse<Page<VoucherUsageResponse>>> getVoucherUsages(
@@ -127,5 +148,80 @@ public class VoucherController {
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
                 voucherAssignmentService.getVoucherUsages(id, customerId, externalOrderId, usedAtFrom, usedAtTo, pageable)));
+    }
+
+    @Operation(summary = "Xuất danh sách voucher ra file CSV")
+    @PreAuthorize("hasAuthority('VOUCHER_READ')")
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportCsv(
+            @And({
+                @Spec(spec = Equal.class, params = "status",       path = "status"),
+                @Spec(spec = Equal.class, params = "campaignId",   path = "campaign.id"),
+                @Spec(spec = Equal.class, params = "discountType", path = "discountType")
+            }) Specification<Voucher> spec) {
+        byte[] csv = exportService.exportVouchers(spec);
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv; charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=\"vouchers.csv\"")
+                .body(csv);
+    }
+
+    @Operation(summary = "Xuất lịch sử sử dụng voucher ra file CSV")
+    @PreAuthorize("hasAuthority('VOUCHER_READ')")
+    @GetMapping("/{id}/usages/export")
+    public ResponseEntity<byte[]> exportUsagesCsv(@PathVariable Long id) {
+        byte[] csv = exportService.exportVoucherUsages(id);
+        return ResponseEntity.ok()
+                .header("Content-Type", "text/csv; charset=UTF-8")
+                .header("Content-Disposition", "attachment; filename=\"usages.csv\"")
+                .body(csv);
+    }
+
+    @Operation(summary = "Tạo hàng loạt mã unique code cho voucher")
+    @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
+    @PostMapping("/{id}/codes/generate")
+    public ResponseEntity<ApiResponse<UniqueCodeGenerateResponse>> generateCodes(
+            @PathVariable Long id,
+            @Valid @RequestBody UniqueCodeGenerateRequest request) {
+        var result = voucherCodeService.generateCodes(id, request.getQuantity());
+        return ResponseEntity.ok(ApiResponse.success(new UniqueCodeGenerateResponse(result.generated(), result.total())));
+    }
+
+    @Operation(summary = "Gán nhiều khách hàng vào voucher cùng lúc")
+    @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
+    @PostMapping("/{id}/customers/bulk")
+    public ResponseEntity<ApiResponse<BulkOperationResponse>> bulkAssign(
+            @PathVariable Long id,
+            @Valid @RequestBody BulkAssignRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(voucherService.bulkAssign(id, request)));
+    }
+
+    @Operation(summary = "Nhân bản voucher (tạo bản sao với code mới)")
+    @PreAuthorize("hasAuthority('VOUCHER_CREATE')")
+    @PostMapping("/{id}/clone")
+    public ResponseEntity<ApiResponse<VoucherResponse>> cloneVoucher(@PathVariable Long id) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(voucherService.clone(id)));
+    }
+
+    @Operation(summary = "Gửi voucher hàng loạt qua email đến tất cả khách hàng đã gán")
+    @PreAuthorize("hasAuthority('DISTRIBUTION_CREATE')")
+    @PostMapping("/{id}/distribute/bulk")
+    public ResponseEntity<ApiResponse<BulkDistributeResponse>> bulkDistribute(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(voucherService.bulkDistribute(id)));
+    }
+
+    @Operation(summary = "Tạm dừng voucher — POS sẽ từ chối voucher này cho đến khi resume")
+    @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
+    @PutMapping("/{id}/pause")
+    public ResponseEntity<ApiResponse<VoucherResponse>> pause(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(voucherService.pause(id)));
+    }
+
+    @Operation(summary = "Kích hoạt lại voucher đang tạm dừng")
+    @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
+    @PutMapping("/{id}/resume")
+    public ResponseEntity<ApiResponse<VoucherResponse>> resume(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(voucherService.resume(id)));
     }
 }

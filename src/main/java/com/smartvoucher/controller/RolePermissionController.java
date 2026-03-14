@@ -17,14 +17,14 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@Tag(name = "Role Permissions", description = "Manage role-permission assignments")
+@Tag(name = "Phân quyền", description = "Quản lý gán/thu hồi quyền cho các vai trò trong hệ thống")
 public class RolePermissionController {
 
     private final RolePermissionService rolePermissionService;
 
     @GetMapping("/permissions")
     @PreAuthorize("hasAuthority('ROLE_PERMISSION_MANAGE')")
-    @Operation(summary = "List all available permissions")
+    @Operation(summary = "Lấy danh sách tất cả quyền trong hệ thống")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getAllPermissions() {
         List<PermissionResponse> result = rolePermissionService.getAllPermissions().stream()
                 .map(p -> PermissionResponse.builder()
@@ -38,7 +38,7 @@ public class RolePermissionController {
 
     @GetMapping("/roles/{role}/permissions")
     @PreAuthorize("hasAuthority('ROLE_PERMISSION_MANAGE')")
-    @Operation(summary = "Get permissions assigned to a role")
+    @Operation(summary = "Lấy danh sách quyền được gán cho một vai trò")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getRolePermissions(@PathVariable UserRole role) {
         List<PermissionResponse> permissions = rolePermissionService.getPermissionsForRole(role).stream()
                 .map(rp -> PermissionResponse.builder()
@@ -52,7 +52,7 @@ public class RolePermissionController {
 
     @PostMapping("/roles/{role}/permissions/{permissionId}")
     @PreAuthorize("hasAuthority('ROLE_PERMISSION_MANAGE')")
-    @Operation(summary = "Assign a permission to a role")
+    @Operation(summary = "Gán quyền cho vai trò")
     public ResponseEntity<ApiResponse<String>> assignPermission(
             @PathVariable UserRole role,
             @PathVariable Long permissionId) {
@@ -62,7 +62,7 @@ public class RolePermissionController {
 
     @DeleteMapping("/roles/{role}/permissions/{permissionId}")
     @PreAuthorize("hasAuthority('ROLE_PERMISSION_MANAGE')")
-    @Operation(summary = "Revoke a permission from a role")
+    @Operation(summary = "Thu hồi quyền khỏi vai trò")
     public ResponseEntity<ApiResponse<String>> revokePermission(
             @PathVariable UserRole role,
             @PathVariable Long permissionId) {
