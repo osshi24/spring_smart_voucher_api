@@ -3,8 +3,11 @@ package com.smartvoucher.controller;
 import com.smartvoucher.dto.request.VoucherCreateRequest;
 import com.smartvoucher.dto.request.VoucherUpdateRequest;
 import com.smartvoucher.dto.response.ApiResponse;
+import com.smartvoucher.dto.response.VoucherCustomerResponse;
 import com.smartvoucher.dto.response.VoucherResponse;
+import com.smartvoucher.dto.response.VoucherUsageResponse;
 import com.smartvoucher.entity.Voucher;
+import com.smartvoucher.service.VoucherAssignmentService;
 import com.smartvoucher.service.VoucherService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class VoucherController {
 
     private final VoucherService voucherService;
+    private final VoucherAssignmentService voucherAssignmentService;
 
     @PreAuthorize("hasAuthority('VOUCHER_CREATE')")
     @PostMapping
@@ -77,5 +81,32 @@ public class VoucherController {
             @RequestBody java.util.List<Long> customerIds) {
         voucherService.assignCustomers(id, customerIds);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    @PreAuthorize("hasAuthority('VOUCHER_READ')")
+    @GetMapping("/{id}/customers")
+    public ResponseEntity<ApiResponse<Page<VoucherCustomerResponse>>> getVoucherCustomers(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(
+                voucherAssignmentService.getVoucherCustomers(id, pageable)));
+    }
+
+    @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
+    @DeleteMapping("/{id}/customers/{customerId}")
+    public ResponseEntity<ApiResponse<String>> revokeAssignment(
+            @PathVariable Long id,
+            @PathVariable Long customerId) {
+        voucherAssignmentService.revokeAssignment(id, customerId);
+        return ResponseEntity.ok(ApiResponse.success("Assignment revoked."));
+    }
+
+    @PreAuthorize("hasAuthority('VOUCHER_READ')")
+    @GetMapping("/{id}/usages")
+    public ResponseEntity<ApiResponse<Page<VoucherUsageResponse>>> getVoucherUsages(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(
+                voucherAssignmentService.getVoucherUsages(id, pageable)));
     }
 }

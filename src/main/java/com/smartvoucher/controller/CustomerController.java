@@ -3,6 +3,8 @@ package com.smartvoucher.controller;
 import com.smartvoucher.dto.request.CustomerCreateRequest;
 import com.smartvoucher.dto.response.ApiResponse;
 import com.smartvoucher.dto.response.CustomerResponse;
+import com.smartvoucher.dto.response.CustomerUsageResponse;
+import com.smartvoucher.dto.response.CustomerVoucherResponse;
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.service.CustomerService;
 import jakarta.validation.Valid;
@@ -57,6 +59,22 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CustomerResponse>> update(
             @PathVariable Long id, @RequestBody CustomerCreateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(customerService.update(id, request)));
+    }
+
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    @GetMapping("/{id}/vouchers")
+    public ResponseEntity<ApiResponse<Page<CustomerVoucherResponse>>> getCustomerVouchers(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(customerService.getCustomerVouchers(id, pageable)));
+    }
+
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    @GetMapping("/{id}/usages")
+    public ResponseEntity<ApiResponse<Page<CustomerUsageResponse>>> getCustomerUsages(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(customerService.getCustomerUsages(id, pageable)));
     }
 
     @PreAuthorize("hasAuthority('CUSTOMER_DELETE')")

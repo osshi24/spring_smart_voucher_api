@@ -1,7 +1,9 @@
 package com.smartvoucher.controller;
 
 import com.smartvoucher.dto.request.ApiKeyCreateRequest;
+import com.smartvoucher.dto.request.RateLimitUpdateRequest;
 import com.smartvoucher.dto.response.ApiKeyResponse;
+import com.smartvoucher.dto.response.ApiKeyUsageResponse;
 import com.smartvoucher.dto.response.ApiResponse;
 import com.smartvoucher.service.ApiKeyService;
 import jakarta.validation.Valid;
@@ -31,6 +33,26 @@ public class ApiKeyController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<ApiKeyResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success(apiKeyService.getAll()));
+    }
+
+    @PreAuthorize("hasAuthority('APIKEY_CREATE')")
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<ApiKeyResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(apiKeyService.getById(id)));
+    }
+
+    @PreAuthorize("hasAuthority('APIKEY_CREATE')")
+    @GetMapping("/{id}/usage")
+    public ResponseEntity<ApiResponse<ApiKeyUsageResponse>> getUsage(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(apiKeyService.getUsage(id)));
+    }
+
+    @PreAuthorize("hasAuthority('APIKEY_CREATE')")
+    @PutMapping("/{id}/rate-limit")
+    public ResponseEntity<ApiResponse<ApiKeyResponse>> updateRateLimit(
+            @PathVariable Long id,
+            @Valid @RequestBody RateLimitUpdateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(apiKeyService.updateRateLimit(id, request)));
     }
 
     @PreAuthorize("hasAuthority('APIKEY_DEACTIVATE')")

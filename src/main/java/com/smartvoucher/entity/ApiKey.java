@@ -38,6 +38,9 @@ public class ApiKey {
     @Column(name = "rate_limit_per_minute")
     private Integer rateLimitPerMinute;
 
+    @Column(name = "rate_limit_per_day")
+    private Integer rateLimitPerDay;
+
     @Column(name = "expires_at")
     private OffsetDateTime expiresAt;
 

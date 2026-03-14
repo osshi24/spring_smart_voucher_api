@@ -3,6 +3,10 @@ package com.smartvoucher.controller;
 import com.smartvoucher.dto.request.*;
 import com.smartvoucher.dto.response.ApiResponse;
 import com.smartvoucher.dto.response.LoginResponse;
+import com.smartvoucher.dto.response.UserResponse;
+import com.smartvoucher.entity.User;
+import com.smartvoucher.exception.ResourceNotFoundException;
+import com.smartvoucher.repository.UserRepository;
 import com.smartvoucher.service.AuthService;
 import com.smartvoucher.service.PasswordResetService;
 import com.smartvoucher.service.UserRegistrationService;
@@ -27,6 +31,15 @@ public class AuthController {
     private final AuthService authService;
     private final UserRegistrationService userRegistrationService;
     private final PasswordResetService passwordResetService;
+    private final UserRepository userRepository;
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current authenticated user profile")
+    public ResponseEntity<ApiResponse<UserResponse>> me(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userDetails.getUsername()));
+        return ResponseEntity.ok(ApiResponse.success(UserResponse.from(user)));
+    }
 
     @PostMapping("/login")
     @Operation(summary = "Login with username and password")
@@ -50,7 +63,7 @@ public class AuthController {
                         "userId", userId)));
     }
 
-    @PostMapping("/verify-email")
+    @GetMapping("/verify-email")
     @Operation(summary = "Verify email with token")
     public ResponseEntity<ApiResponse<Map<String, String>>> verifyEmail(@RequestParam String token) {
         userRegistrationService.verifyEmail(token);

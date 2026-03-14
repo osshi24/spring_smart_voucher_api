@@ -42,4 +42,17 @@ public class DistributionController {
         }
         return ResponseEntity.ok(ApiResponse.success(distributionService.getByVoucher(null)));
     }
+
+    @PreAuthorize("hasAuthority('DISTRIBUTION_READ')")
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<DistributionResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(distributionService.getById(id)));
+    }
+
+    @PreAuthorize("hasAuthority('DISTRIBUTION_CREATE')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<String>> cancel(@PathVariable Long id) {
+        distributionService.cancel(id);
+        return ResponseEntity.ok(ApiResponse.success("Distribution cancelled."));
+    }
 }

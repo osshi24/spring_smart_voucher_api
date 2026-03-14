@@ -20,8 +20,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME:test@gmail.com}
-    password: ${MAIL_PASSWORD:changeme}
+    username: phuocthuan2003@gmail.com
+    password: kvxrsejjgvqhbidv
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
@@ -38,6 +38,7 @@ app:
     verification-expiry-hours: 24
     reset-token-expiry-hours: 1
   base-url: http://localhost:8080
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
 
 logging:
   level:

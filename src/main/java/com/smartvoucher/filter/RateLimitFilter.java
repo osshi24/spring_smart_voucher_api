@@ -30,6 +30,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Value("${app.rate-limit.default-per-minute:100}")
     private int defaultLimitPerMinute;
 
+    @Value("${app.rate-limit.default-per-day:0}")
+    private int defaultLimitPerDay;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -41,33 +44,52 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        int limit = defaultLimitPerMinute;
+        int minuteLimit = defaultLimitPerMinute;
+        int dayLimit = defaultLimitPerDay;
+
         Optional<ApiKey> apiKeyOpt = apiKeyRepository.findById(apiKeyId);
-        if (apiKeyOpt.isPresent() && apiKeyOpt.get().getRateLimitPerMinute() != null) {
-            limit = apiKeyOpt.get().getRateLimitPerMinute();
+        if (apiKeyOpt.isPresent()) {
+            ApiKey apiKey = apiKeyOpt.get();
+            if (apiKey.getRateLimitPerMinute() != null) minuteLimit = apiKey.getRateLimitPerMinute();
+            if (apiKey.getRateLimitPerDay() != null) dayLimit = apiKey.getRateLimitPerDay();
         }
 
-        RateLimitService.RateLimitResult result = rateLimitService.checkAndIncrement(apiKeyId, limit);
+        // Check per-minute limit
+        RateLimitService.RateLimitResult minuteResult = rateLimitService.checkAndIncrementMinute(apiKeyId, minuteLimit);
+        response.setHeader("X-RateLimit-Limit-Minute", String.valueOf(minuteResult.limit()));
+        response.setHeader("X-RateLimit-Remaining-Minute", String.valueOf(minuteResult.remaining()));
+        response.setHeader("X-RateLimit-Reset-Minute", String.valueOf(minuteResult.resetEpochSeconds()));
 
-        response.setHeader("X-RateLimit-Limit", String.valueOf(result.limit()));
-        response.setHeader("X-RateLimit-Remaining", String.valueOf(result.remaining()));
-        response.setHeader("X-RateLimit-Reset", String.valueOf(result.resetEpochSeconds()));
-
-        if (result.isExceeded()) {
-            response.setStatus(429);
-            response.setContentType("application/json;charset=UTF-8");
-            Map<String, Object> body = Map.of(
-                    "success", false,
-                    "error", Map.of(
-                            "code", "RATE_LIMIT_EXCEEDED",
-                            "message", "Rate limit exceeded. Try again after the current window resets.",
-                            "details", "Limit: " + result.limit() + " req/min"
-                    )
-            );
-            response.getWriter().write(objectMapper.writeValueAsString(body));
+        if (minuteResult.isExceeded()) {
+            writeRateLimitError(response, "RATE_LIMIT_EXCEEDED",
+                    "Rate limit exceeded. Limit: " + minuteResult.limit() + " req/min");
             return;
         }
 
+        // Check per-day limit (0 = unlimited)
+        if (dayLimit > 0) {
+            RateLimitService.RateLimitResult dayResult = rateLimitService.checkAndIncrementDay(apiKeyId, dayLimit);
+            response.setHeader("X-RateLimit-Limit-Day", String.valueOf(dayResult.limit()));
+            response.setHeader("X-RateLimit-Remaining-Day", String.valueOf(dayResult.remaining()));
+            response.setHeader("X-RateLimit-Reset-Day", String.valueOf(dayResult.resetEpochSeconds()));
+
+            if (dayResult.isExceeded()) {
+                writeRateLimitError(response, "DAILY_LIMIT_EXCEEDED",
+                        "Daily request limit exceeded. Limit: " + dayResult.limit() + " req/day");
+                return;
+            }
+        }
+
         filterChain.doFilter(request, response);
+    }
+
+    private void writeRateLimitError(HttpServletResponse response, String code, String message) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json;charset=UTF-8");
+        Map<String, Object> body = Map.of(
+                "success", false,
+                "error", Map.of("code", code, "message", message)
+        );
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

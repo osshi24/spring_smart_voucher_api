@@ -6,10 +6,12 @@ import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.Voucher;
 import com.smartvoucher.entity.VoucherDistribution;
 import com.smartvoucher.entity.enums.DistributionStatus;
+import com.smartvoucher.exception.ConflictException;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.CustomerRepository;
 import com.smartvoucher.repository.DistributionRepository;
 import com.smartvoucher.repository.VoucherRepository;
+import com.smartvoucher.repository.VoucherUsageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class DistributionService {
     private final DistributionRepository distributionRepository;
     private final VoucherRepository voucherRepository;
     private final CustomerRepository customerRepository;
+    private final VoucherUsageRepository voucherUsageRepository;
 
     @Transactional
     public DistributionResponse create(DistributionCreateRequest req) {
@@ -64,6 +67,27 @@ public class DistributionService {
             dist.setStatus(DistributionStatus.FAILED);
             dist.setErrorMessage(e.getMessage());
         }
+        distributionRepository.save(dist);
+    }
+
+    @Transactional(readOnly = true)
+    public DistributionResponse getById(Long id) {
+        VoucherDistribution dist = distributionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Distribution not found: " + id));
+        return DistributionResponse.from(dist);
+    }
+
+    @Transactional
+    public void cancel(Long id) {
+        VoucherDistribution dist = distributionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Distribution not found: " + id));
+
+        if (voucherUsageRepository.existsByVoucherIdAndCustomerId(
+                dist.getVoucher().getId(), dist.getCustomer().getId())) {
+            throw new ConflictException("Cannot cancel: the voucher has already been redeemed by the customer.");
+        }
+
+        dist.setStatus(DistributionStatus.CANCELLED);
         distributionRepository.save(dist);
     }
 

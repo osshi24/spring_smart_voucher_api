@@ -3,6 +3,7 @@ package com.smartvoucher.service;
 import com.smartvoucher.dto.request.CampaignCreateRequest;
 import com.smartvoucher.dto.response.CampaignResponse;
 import com.smartvoucher.dto.response.CampaignStatsResponse;
+import com.smartvoucher.dto.response.VoucherResponse;
 import com.smartvoucher.entity.Campaign;
 import com.smartvoucher.entity.User;
 import com.smartvoucher.entity.enums.CampaignStatus;
@@ -96,6 +97,14 @@ public class CampaignService {
                 totalDiscount != null ? totalDiscount : BigDecimal.ZERO,
                 campaign.getBudget()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Page<VoucherResponse> getCampaignVouchers(Long campaignId, Pageable pageable) {
+        if (!campaignRepository.existsById(campaignId)) {
+            throw new ResourceNotFoundException("Campaign not found: " + campaignId);
+        }
+        return voucherRepository.findByCampaignId(campaignId, pageable).map(VoucherResponse::from);
     }
 
     @Transactional

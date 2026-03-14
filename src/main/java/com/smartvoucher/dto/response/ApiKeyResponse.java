@@ -13,6 +13,8 @@ public class ApiKeyResponse {
     private Long id;
     private String name;
     private String systemName;
+    private Integer rateLimitPerMinute;
+    private Integer rateLimitPerDay;
     private Boolean isActive;
     private OffsetDateTime expiresAt;
     private OffsetDateTime createdAt;
@@ -24,6 +26,8 @@ public class ApiKeyResponse {
         res.id = apiKey.getId();
         res.name = apiKey.getName();
         res.systemName = apiKey.getSystemName();
+        res.rateLimitPerMinute = apiKey.getRateLimitPerMinute();
+        res.rateLimitPerDay = apiKey.getRateLimitPerDay();
         res.isActive = apiKey.getIsActive();
         res.expiresAt = apiKey.getExpiresAt();
         res.createdAt = apiKey.getCreatedAt();

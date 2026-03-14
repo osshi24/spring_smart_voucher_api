@@ -31,6 +31,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("DUPLICATE_RESOURCE", ex.getMessage()));
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConflict(ConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("CONFLICT", ex.getMessage()));
+    }
+
     @ExceptionHandler(VoucherExpiredException.class)
     public ResponseEntity<ApiResponse<Void>> handleVoucherExpired(VoucherExpiredException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)

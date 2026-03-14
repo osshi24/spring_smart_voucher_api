@@ -30,8 +30,8 @@ springdoc:
 
 jwt:
   secret: ${JWT_SECRET:smartvoucher-secret-key-must-be-at-least-256-bits-long-for-hs256}
-  access-expiration: ${JWT_ACCESS_EXPIRATION:86400000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  access-expiration: ${JWT_ACCESS_EXPIRATION:86400000000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:60480000000}
 
 server:
   port: 8080

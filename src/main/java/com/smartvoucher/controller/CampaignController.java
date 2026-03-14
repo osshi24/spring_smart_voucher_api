@@ -4,6 +4,7 @@ import com.smartvoucher.dto.request.CampaignCreateRequest;
 import com.smartvoucher.dto.response.ApiResponse;
 import com.smartvoucher.dto.response.CampaignResponse;
 import com.smartvoucher.dto.response.CampaignStatsResponse;
+import com.smartvoucher.dto.response.VoucherResponse;
 import com.smartvoucher.entity.Campaign;
 import com.smartvoucher.entity.enums.CampaignStatus;
 import com.smartvoucher.service.CampaignService;
@@ -71,6 +72,14 @@ public class CampaignController {
     @GetMapping("/{id}/stats")
     public ResponseEntity<ApiResponse<CampaignStatsResponse>> getStats(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(campaignService.getStats(id)));
+    }
+
+    @PreAuthorize("hasAuthority('CAMPAIGN_READ')")
+    @GetMapping("/{id}/vouchers")
+    public ResponseEntity<ApiResponse<Page<VoucherResponse>>> getCampaignVouchers(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(campaignService.getCampaignVouchers(id, pageable)));
     }
 
     @PreAuthorize("hasAuthority('CAMPAIGN_DELETE')")
