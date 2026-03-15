@@ -254,3 +254,7 @@ Các endpoint lồng nhau cũng hỗ trợ filter:
 | `merchant01` | `staff123` | USER |
 
 > Tài khoản USER (merchant) tự đăng ký qua `POST /api/v1/auth/register-merchant`.
+
+
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
