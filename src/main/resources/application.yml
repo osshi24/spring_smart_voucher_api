@@ -58,7 +58,7 @@ scheduler:
 
 rate-limit:
   jwt:
-    requests-per-minute: 60
+    requests-per-minute: 400
 
 webhook:
   max-retries: 3
