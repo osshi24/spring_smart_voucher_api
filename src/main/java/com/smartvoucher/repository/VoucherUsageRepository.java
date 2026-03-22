@@ -42,4 +42,19 @@ public interface VoucherUsageRepository extends JpaRepository<VoucherUsage, Long
 
     @Query("SELECT COUNT(DISTINCT u.voucher.createdBy.id) FROM VoucherUsage u")
     long countDistinctMerchantsWithUsage();
+
+    @Query("SELECT COUNT(DISTINCT u.customer.id) FROM VoucherUsage u")
+    long countDistinctCustomers();
+
+    @Query("SELECT COUNT(DISTINCT u.customer.id) FROM VoucherUsage u WHERE u.usedAt BETWEEN :from AND :to")
+    long countDistinctCustomersByPeriod(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+
+    @Query("SELECT COUNT(u) FROM VoucherUsage u WHERE u.usedAt BETWEEN :from AND :to")
+    long countByUsedAtBetween(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+
+    @Query("SELECT COALESCE(SUM(u.discountAmount), 0) FROM VoucherUsage u WHERE u.usedAt BETWEEN :from AND :to")
+    java.math.BigDecimal sumDiscountAmountByPeriod(@Param("from") OffsetDateTime from, @Param("to") OffsetDateTime to);
+
+    @Query("SELECT DISTINCT u.externalBranchId FROM VoucherUsage u WHERE u.externalBranchId IS NOT NULL ORDER BY u.externalBranchId")
+    List<String> findDistinctBranchIds();
 }

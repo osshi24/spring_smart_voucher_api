@@ -85,6 +85,28 @@ public class DashboardService {
             activeMerchantCount = voucherUsageRepository.countDistinctMerchantsWithUsage();
         }
 
+        // Active customer count
+        long activeCustomerCount = voucherUsageRepository.countDistinctCustomers();
+
+        // Growth metrics: compare current month vs previous month
+        OffsetDateTime currentMonthStart = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime prevMonthStart = currentMonthStart.minusMonths(1);
+        OffsetDateTime prevMonthEnd = currentMonthStart.minusNanos(1);
+
+        BigDecimal currentSavings = voucherUsageRepository.sumDiscountAmountByPeriod(currentMonthStart, now);
+        BigDecimal prevSavings = voucherUsageRepository.sumDiscountAmountByPeriod(prevMonthStart, prevMonthEnd);
+        Double savingsGrowthRate = calcGrowthRate(prevSavings, currentSavings);
+
+        long currentActiveUsers = voucherUsageRepository.countDistinctCustomersByPeriod(currentMonthStart, now);
+        long prevActiveUsers = voucherUsageRepository.countDistinctCustomersByPeriod(prevMonthStart, prevMonthEnd);
+        Double activeUsersGrowthRate = calcGrowthRate(
+                BigDecimal.valueOf(prevActiveUsers), BigDecimal.valueOf(currentActiveUsers));
+
+        long currentUsagesMonth = voucherUsageRepository.countByUsedAtBetween(currentMonthStart, now);
+        long prevUsagesMonth = voucherUsageRepository.countByUsedAtBetween(prevMonthStart, prevMonthEnd);
+        Double redemptionRateGrowth = calcGrowthRate(
+                BigDecimal.valueOf(prevUsagesMonth), BigDecimal.valueOf(currentUsagesMonth));
+
         return DashboardOverviewResponse.builder()
                 .totalVouchers(totalVouchers)
                 .activeVouchers(activeVouchers)
@@ -94,7 +116,19 @@ public class DashboardService {
                 .conversionRate(conversionRate)
                 .revenueByDay(revenueByDay)
                 .activeMerchantCount(activeMerchantCount)
+                .activeCustomerCount(activeCustomerCount)
+                .savingsGrowthRate(savingsGrowthRate)
+                .activeUsersGrowthRate(activeUsersGrowthRate)
+                .redemptionRateGrowth(redemptionRateGrowth)
                 .build();
+    }
+
+    private Double calcGrowthRate(BigDecimal prev, BigDecimal current) {
+        if (prev == null || prev.compareTo(BigDecimal.ZERO) == 0) return null;
+        return current.subtract(prev)
+                .divide(prev, 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .doubleValue();
     }
 
     @Transactional(readOnly = true)

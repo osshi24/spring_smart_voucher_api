@@ -19,4 +19,8 @@ public class DashboardOverviewResponse {
     private double conversionRate;
     private Map<String, BigDecimal> revenueByDay;
     private Long activeMerchantCount;
+    private Long activeCustomerCount;
+    private Double savingsGrowthRate;
+    private Double activeUsersGrowthRate;
+    private Double redemptionRateGrowth;
 }

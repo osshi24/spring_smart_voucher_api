@@ -85,14 +85,22 @@ public class ExportService {
     }
 
     @Transactional(readOnly = true)
-    public byte[] exportVoucherUsages(Long voucherId) {
-        List<VoucherUsage> usages = voucherUsageRepository.findByVoucherId(voucherId);
+    public byte[] exportAllUsages(Specification<VoucherUsage> spec) {
+        List<VoucherUsage> usages = voucherUsageRepository.findAll(spec);
+        return writeUsagesCsv(usages);
+    }
 
+    @Transactional(readOnly = true)
+    public byte[] exportVoucherUsages(Long voucherId) {
+        return writeUsagesCsv(voucherUsageRepository.findByVoucherId(voucherId));
+    }
+
+    private byte[] writeUsagesCsv(List<VoucherUsage> usages) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              CSVWriter writer = new CSVWriter(new OutputStreamWriter(baos, StandardCharsets.UTF_8))) {
 
             writer.writeNext(new String[]{"id", "voucherCode", "customerName", "customerEmail",
-                    "discountAmount", "orderTotal", "externalOrderId", "usedAt"});
+                    "externalOrderId", "externalBranchId", "discountAmount", "orderTotal", "status", "usedAt"});
 
             for (VoucherUsage u : usages) {
                 writer.writeNext(new String[]{
@@ -100,8 +108,10 @@ public class ExportService {
                         u.getVoucher() != null ? u.getVoucher().getCode() : "",
                         u.getCustomer() != null ? u.getCustomer().getFullName() : "",
                         u.getCustomer() != null ? u.getCustomer().getEmail() : "",
+                        u.getExternalOrderId(),
+                        str(u.getExternalBranchId()),
                         str(u.getDiscountAmount()), str(u.getOrderTotal()),
-                        u.getExternalOrderId(), str(u.getUsedAt())
+                        "COMPLETED", str(u.getUsedAt())
                 });
             }
             writer.flush();
