@@ -24,7 +24,7 @@ public class AuditLogController {
     private final AuditLogService auditLogService;
 
     @Operation(summary = "Xem lịch sử audit log (chỉ admin)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('AUDIT_READ')")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<AuditLog>>> getAll(
             @PageableDefault(size = 20) Pageable pageable) {
