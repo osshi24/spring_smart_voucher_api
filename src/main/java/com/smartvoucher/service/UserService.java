@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.UserUpdateRequest;
 import com.smartvoucher.dto.response.UserResponse;
 import com.smartvoucher.entity.User;
@@ -32,6 +33,7 @@ public class UserService {
         return UserResponse.from(user);
     }
 
+    @Auditable(action = "UPDATE", entityType = "User", entityIdSpel = "#id")
     @Transactional
     public UserResponse updateUser(Long id, UserUpdateRequest req) {
         User user = userRepository.findById(id)

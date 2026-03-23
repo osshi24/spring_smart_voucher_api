@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.config.JwtConfig;
 import com.smartvoucher.dto.request.LoginRequest;
 import com.smartvoucher.dto.response.LoginResponse;
@@ -24,6 +25,7 @@ public class AuthService {
     private final JwtConfig jwtConfig;
     private final UserRepository userRepository;
 
+    @Auditable(action = "LOGIN", entityType = "User")
     public LoginResponse login(LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(

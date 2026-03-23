@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.BulkAssignRequest;
 import com.smartvoucher.dto.request.VoucherCreateRequest;
 import com.smartvoucher.dto.request.VoucherUpdateRequest;
@@ -16,7 +17,6 @@ import com.smartvoucher.entity.enums.DistributionChannel;
 import com.smartvoucher.entity.enums.DistributionStatus;
 import com.smartvoucher.entity.enums.UserRole;
 import com.smartvoucher.entity.enums.VoucherStatus;
-import com.smartvoucher.service.AuditLogService;
 import java.util.List;
 import com.smartvoucher.exception.DuplicateResourceException;
 import org.springframework.data.jpa.domain.Specification;
@@ -46,10 +46,10 @@ public class VoucherService {
     private final CampaignRepository campaignRepository;
     private final CustomerRepository customerRepository;
     private final VoucherCustomerRepository voucherCustomerRepository;
-    private final AuditLogService auditLogService;
     private final DistributionService distributionService;
     private final DistributionRepository distributionRepository;
 
+    @Auditable(action = "CREATE", entityType = "Voucher", entityIdSpel = "#result?.id")
     @Transactional
     public VoucherResponse create(VoucherCreateRequest req) {
         if (voucherRepository.existsByCode(req.getCode())) {
@@ -102,6 +102,7 @@ public class VoucherService {
         return voucherRepository.findAll(withOwnerFilter(spec), pageable).map(VoucherResponse::from);
     }
 
+    @Auditable(action = "UPDATE", entityType = "Voucher", entityIdSpel = "#id")
     @Transactional
     public VoucherResponse update(Long id, VoucherUpdateRequest req) {
         Voucher voucher = findById(id);
@@ -131,11 +132,10 @@ public class VoucherService {
             validateDateRange(voucher.getValidFrom(), voucher.getValidUntil());
         }
 
-        VoucherResponse result = VoucherResponse.from(voucherRepository.save(voucher));
-        auditLogService.log("UPDATE", "Voucher", id, null, result);
-        return result;
+        return VoucherResponse.from(voucherRepository.save(voucher));
     }
 
+    @Auditable(action = "ASSIGN_CUSTOMERS", entityType = "Voucher", entityIdSpel = "#voucherId")
     @Transactional
     public void assignCustomers(Long voucherId, java.util.List<Long> customerIds) {
         Voucher voucher = findById(voucherId);
@@ -151,16 +151,17 @@ public class VoucherService {
         }
     }
 
+    @Auditable(action = "DELETE", entityType = "Voucher", entityIdSpel = "#id")
     @Transactional
     public void delete(Long id) {
         Voucher voucher = findById(id);
         if (voucher.getCurrentUsageCount() > 0) {
             throw new DuplicateResourceException("Cannot delete voucher that has been used " + voucher.getCurrentUsageCount() + " time(s)");
         }
-        auditLogService.log("DELETE", "Voucher", id, VoucherResponse.from(voucher), null);
         voucherRepository.delete(voucher);
     }
 
+    @Auditable(action = "BULK_ASSIGN", entityType = "Voucher", entityIdSpel = "#voucherId")
     @Transactional
     public BulkOperationResponse bulkAssign(Long voucherId, BulkAssignRequest req) {
         Voucher voucher = findById(voucherId);
@@ -191,6 +192,7 @@ public class VoucherService {
                 .build();
     }
 
+    @Auditable(action = "CLONE", entityType = "Voucher", entityIdSpel = "#id")
     @Transactional
     public VoucherResponse clone(Long id) {
         Voucher original = findById(id);
@@ -220,6 +222,7 @@ public class VoucherService {
         return VoucherResponse.from(voucherRepository.save(cloned));
     }
 
+    @Auditable(action = "PAUSE", entityType = "Voucher", entityIdSpel = "#id")
     @Transactional
     public VoucherResponse pause(Long id) {
         Voucher voucher = findById(id);
@@ -233,6 +236,7 @@ public class VoucherService {
         return VoucherResponse.from(voucherRepository.save(voucher));
     }
 
+    @Auditable(action = "RESUME", entityType = "Voucher", entityIdSpel = "#id")
     @Transactional
     public VoucherResponse resume(Long id) {
         Voucher voucher = findById(id);
@@ -246,6 +250,7 @@ public class VoucherService {
         return VoucherResponse.from(voucherRepository.save(voucher));
     }
 
+    @Auditable(action = "BULK_DISTRIBUTE", entityType = "Voucher", entityIdSpel = "#voucherId")
     @Transactional
     public BulkDistributeResponse bulkDistribute(Long voucherId) {
         Voucher voucher = findById(voucherId); // includes ownership check

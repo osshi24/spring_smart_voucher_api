@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.RegisterRequest;
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.EmailVerificationOtp;
@@ -151,6 +152,7 @@ public class UserRegistrationService {
         sendOtp(user);
     }
 
+    @Auditable(action = "APPROVE", entityType = "User", entityIdSpel = "#userId")
     @Transactional
     public void approveUser(Long userId) {
         User user = userRepository.findById(userId)
@@ -167,6 +169,7 @@ public class UserRegistrationService {
         userRepository.save(user);
     }
 
+    @Auditable(action = "REJECT", entityType = "User", entityIdSpel = "#userId")
     @Transactional
     public void rejectUser(Long userId) {
         User user = userRepository.findById(userId)

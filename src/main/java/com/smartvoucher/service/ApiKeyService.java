@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.ApiKeyCreateRequest;
 import com.smartvoucher.dto.request.RateLimitUpdateRequest;
 import com.smartvoucher.dto.response.ApiKeyResponse;
@@ -10,7 +11,6 @@ import com.smartvoucher.entity.enums.UserRole;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.ApiKeyRepository;
 import com.smartvoucher.repository.UserRepository;
-import com.smartvoucher.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,8 +31,8 @@ public class ApiKeyService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RateLimitService rateLimitService;
-    private final AuditLogService auditLogService;
 
+    @Auditable(action = "CREATE", entityType = "ApiKey", entityIdSpel = "#result?.id")
     @Transactional
     public ApiKeyResponse create(ApiKeyCreateRequest req) {
         User currentUser = getCurrentUser();
@@ -89,13 +89,12 @@ public class ApiKeyService {
                 .build();
     }
 
+    @Auditable(action = "DEACTIVATE", entityType = "ApiKey", entityIdSpel = "#id")
     @Transactional
     public ApiKeyResponse deactivate(Long id) {
         ApiKey apiKey = findById(id);
         apiKey.setIsActive(false);
-        ApiKeyResponse result = ApiKeyResponse.from(apiKeyRepository.save(apiKey));
-        auditLogService.log("DEACTIVATE", "ApiKey", id, null, null);
-        return result;
+        return ApiKeyResponse.from(apiKeyRepository.save(apiKey));
     }
 
     private ApiKey findById(Long id) {

@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.CampaignCreateRequest;
 import com.smartvoucher.dto.response.CampaignResponse;
 import com.smartvoucher.dto.response.CampaignStatsResponse;
@@ -13,7 +14,6 @@ import com.smartvoucher.repository.CampaignRepository;
 import com.smartvoucher.repository.UserRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
-import com.smartvoucher.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
@@ -32,8 +32,8 @@ public class CampaignService {
     private final UserRepository userRepository;
     private final VoucherRepository voucherRepository;
     private final VoucherUsageRepository voucherUsageRepository;
-    private final AuditLogService auditLogService;
 
+    @Auditable(action = "CREATE", entityType = "Campaign", entityIdSpel = "#result?.id")
     @Transactional
     public CampaignResponse create(CampaignCreateRequest req) {
         if (req.getEndDate() != null && req.getStartDate() != null &&
@@ -64,6 +64,7 @@ public class CampaignService {
         return CampaignResponse.from(findById(id));
     }
 
+    @Auditable(action = "UPDATE", entityType = "Campaign", entityIdSpel = "#id")
     @Transactional
     public CampaignResponse update(Long id, CampaignCreateRequest req) {
         Campaign campaign = findById(id);
@@ -77,14 +78,12 @@ public class CampaignService {
         return CampaignResponse.from(campaignRepository.save(campaign));
     }
 
+    @Auditable(action = "STATUS_CHANGE", entityType = "Campaign", entityIdSpel = "#id")
     @Transactional
     public CampaignResponse updateStatus(Long id, CampaignStatus newStatus) {
         Campaign campaign = findById(id);
-        CampaignStatus oldStatus = campaign.getStatus();
         campaign.setStatus(newStatus);
-        CampaignResponse result = CampaignResponse.from(campaignRepository.save(campaign));
-        auditLogService.log("STATUS_CHANGE", "Campaign", id, oldStatus, newStatus);
-        return result;
+        return CampaignResponse.from(campaignRepository.save(campaign));
     }
 
     @Transactional(readOnly = true)
@@ -130,12 +129,14 @@ public class CampaignService {
         return voucherRepository.findAll(spec, pageable).map(VoucherResponse::from);
     }
 
+    @Auditable(action = "DELETE", entityType = "Campaign", entityIdSpel = "#id")
     @Transactional
     public void delete(Long id) {
         Campaign campaign = findById(id);
         campaignRepository.delete(campaign);
     }
 
+    @Auditable(action = "CLONE", entityType = "Campaign", entityIdSpel = "#id")
     @Transactional
     public CampaignResponse clone(Long id) {
         Campaign original = findById(id);

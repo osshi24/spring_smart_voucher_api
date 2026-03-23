@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartvoucher.dto.request.VoucherRedeemRequest;
 import com.smartvoucher.dto.response.RedemptionReverseResponse;
@@ -48,6 +49,7 @@ public class VoucherRedemptionService {
         return redeem(req, null, null);
     }
 
+    @Auditable(action = "REDEEM", entityType = "VoucherUsage")
     @Transactional
     public VoucherValidateResponse redeem(VoucherRedeemRequest req, String idempotencyKey, Long apiKeyId) {
         // --- Idempotency check ---
@@ -179,6 +181,7 @@ public class VoucherRedemptionService {
         return response;
     }
 
+    @Auditable(action = "REVERSE", entityType = "VoucherUsage", entityIdSpel = "#usageId")
     @Transactional
     public RedemptionReverseResponse reverse(Long usageId, Long apiKeyId) {
         VoucherUsage usage = voucherUsageRepository.findById(usageId)

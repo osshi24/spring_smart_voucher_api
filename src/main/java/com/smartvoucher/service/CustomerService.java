@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.CustomerCreateRequest;
 import com.smartvoucher.dto.response.BulkOperationResponse;
 import com.smartvoucher.dto.response.CustomerResponse;
@@ -50,6 +51,7 @@ public class CustomerService {
     private final UserRepository userRepository;
     private final CustomerResolutionService customerResolutionService;
 
+    @Auditable(action = "CREATE", entityType = "Customer", entityIdSpel = "#result?.id")
     @Transactional
     public CustomerResponse create(CustomerCreateRequest req) {
         if (req.getExternalId() != null && customerRepository.existsByExternalId(req.getExternalId())) {
@@ -89,6 +91,7 @@ public class CustomerService {
         return CustomerResponse.from(customer);
     }
 
+    @Auditable(action = "UPDATE", entityType = "Customer", entityIdSpel = "#id")
     @Transactional
     public CustomerResponse update(Long id, CustomerCreateRequest req) {
         Customer customer = findById(id);
@@ -172,6 +175,7 @@ public class CustomerService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    @Auditable(action = "DEACTIVATE", entityType = "Customer", entityIdSpel = "#id")
     @Transactional
     public CustomerResponse deactivate(Long id) {
         Customer customer = findById(id);
@@ -182,6 +186,7 @@ public class CustomerService {
         return CustomerResponse.from(customerRepository.save(customer));
     }
 
+    @Auditable(action = "ACTIVATE", entityType = "Customer", entityIdSpel = "#id")
     @Transactional
     public CustomerResponse activate(Long id) {
         Customer customer = findById(id);
@@ -192,11 +197,13 @@ public class CustomerService {
         return CustomerResponse.from(customerRepository.save(customer));
     }
 
+    @Auditable(action = "DELETE", entityType = "Customer", entityIdSpel = "#id")
     @Transactional
     public void delete(Long id) {
         customerRepository.delete(findById(id));
     }
 
+    @Auditable(action = "IMPORT", entityType = "Customer")
     @Transactional
     public BulkOperationResponse importFromCsv(MultipartFile file) {
         List<BulkOperationResponse.BulkError> errors = new ArrayList<>();

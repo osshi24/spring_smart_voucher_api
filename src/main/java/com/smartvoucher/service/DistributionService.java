@@ -1,5 +1,6 @@
 package com.smartvoucher.service;
 
+import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.DistributionCreateRequest;
 import com.smartvoucher.dto.response.DistributionResponse;
 import com.smartvoucher.entity.Customer;
@@ -41,6 +42,7 @@ public class DistributionService {
     private final EmailService emailService;
     private final QrTokenService qrTokenService;
 
+    @Auditable(action = "CREATE", entityType = "Distribution", entityIdSpel = "#result?.id")
     @Transactional
     public DistributionResponse create(DistributionCreateRequest req) {
         Voucher voucher = voucherRepository.findById(req.getVoucherId())
