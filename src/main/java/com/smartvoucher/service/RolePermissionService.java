@@ -25,6 +25,7 @@ public class RolePermissionService {
         return permissionRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<RolePermission> getPermissionsForRole(UserRole role) {
         return rolePermissionRepository.findByRole(role);
     }

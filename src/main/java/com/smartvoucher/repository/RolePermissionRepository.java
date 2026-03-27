@@ -11,7 +11,8 @@ import java.util.Set;
 
 public interface RolePermissionRepository extends JpaRepository<RolePermission, RolePermission.RolePermissionId> {
 
-    List<RolePermission> findByRole(UserRole role);
+    @Query("SELECT rp FROM RolePermission rp JOIN FETCH rp.permission WHERE rp.role = :role")
+    List<RolePermission> findByRole(@Param("role") UserRole role);
 
     @Query("SELECT rp.permission.name FROM RolePermission rp WHERE rp.role = :role")
     Set<String> findPermissionNamesByRole(@Param("role") UserRole role);

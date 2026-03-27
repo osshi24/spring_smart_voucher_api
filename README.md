@@ -257,6 +257,8 @@ Các endpoint lồng nhau cũng hỗ trợ filter:
 
 
 docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+
 
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
