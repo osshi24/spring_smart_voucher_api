@@ -1,6 +1,7 @@
 package com.smartvoucher.dto.response;
 
 import com.smartvoucher.entity.Voucher;
+import com.smartvoucher.entity.enums.CodeType;
 import com.smartvoucher.entity.enums.DiscountType;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import lombok.Getter;
@@ -29,6 +30,7 @@ public class VoucherResponse {
     private Integer maxUsageTotal;
     private Integer maxUsagePerCustomer;
     private Integer currentUsageCount;
+    private CodeType codeType;
     private Boolean isPublic;
     private OffsetDateTime validFrom;
     private OffsetDateTime validUntil;
@@ -57,6 +59,7 @@ public class VoucherResponse {
         res.maxUsageTotal = voucher.getMaxUsageTotal();
         res.maxUsagePerCustomer = voucher.getMaxUsagePerCustomer();
         res.currentUsageCount = voucher.getCurrentUsageCount();
+        res.codeType = voucher.getCodeType();
         res.isPublic = voucher.getIsPublic();
         res.validFrom = voucher.getValidFrom();
         res.validUntil = voucher.getValidUntil();

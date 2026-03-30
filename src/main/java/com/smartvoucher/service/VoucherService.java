@@ -74,6 +74,7 @@ public class VoucherService {
         voucher.setMaxUsageTotal(req.getMaxUsageTotal());
         voucher.setMaxUsagePerCustomer(req.getMaxUsagePerCustomer());
         voucher.setIsPublic(req.getIsPublic() != null ? req.getIsPublic() : true);
+        voucher.setCodeType(req.getCodeType() != null ? req.getCodeType() : com.smartvoucher.entity.enums.CodeType.SHARED);
         voucher.setValidFrom(req.getValidFrom());
         voucher.setValidUntil(req.getValidUntil());
         voucher.setStatus(VoucherStatus.ACTIVE);

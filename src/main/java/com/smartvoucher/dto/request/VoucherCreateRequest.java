@@ -1,5 +1,6 @@
 package com.smartvoucher.dto.request;
 
+import com.smartvoucher.entity.enums.CodeType;
 import com.smartvoucher.entity.enums.DiscountType;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
@@ -42,6 +43,8 @@ public class VoucherCreateRequest {
     private Integer maxUsageTotal;
 
     private Integer maxUsagePerCustomer;
+
+    private CodeType codeType = CodeType.SHARED;
 
     private Boolean isPublic = true;
 

@@ -11,10 +11,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.security.SecureRandom;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -71,6 +77,23 @@ public class VoucherCodeService {
             sb.append(BASE62.charAt(RANDOM.nextInt(BASE62.length())));
         }
         return sb.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Map<String, Object>> listCodes(Long voucherId, Pageable pageable) {
+        if (!voucherRepository.existsById(voucherId)) {
+            throw new ResourceNotFoundException("Voucher not found: " + voucherId);
+        }
+        return voucherCodeRepository.findByVoucherId(voucherId, pageable).map(vc -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", vc.getId());
+            m.put("code", vc.getCode());
+            m.put("customerId", vc.getCustomer() != null ? vc.getCustomer().getId() : null);
+            m.put("used", vc.getUsed());
+            m.put("usedAt", vc.getUsedAt());
+            m.put("createdAt", vc.getCreatedAt());
+            return m;
+        });
     }
 
     public record UniqueCodeGenerateResult(int generated, long total) {}

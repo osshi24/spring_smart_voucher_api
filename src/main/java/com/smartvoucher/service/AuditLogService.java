@@ -20,7 +20,6 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
 
-    @Async
     public void log(String action, String entityType, Long entityId, Object oldValue, Object newValue) {
         try {
             User user = null;

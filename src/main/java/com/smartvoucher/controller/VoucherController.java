@@ -177,6 +177,15 @@ public class VoucherController {
                 .body(csv);
     }
 
+    @Operation(summary = "Xem danh sách unique code của voucher")
+    @PreAuthorize("hasAuthority('VOUCHER_READ')")
+    @GetMapping("/{id}/codes")
+    public ResponseEntity<ApiResponse<Page<java.util.Map<String, Object>>>> listCodes(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(voucherCodeService.listCodes(id, pageable)));
+    }
+
     @Operation(summary = "Tạo hàng loạt mã unique code cho voucher")
     @PreAuthorize("hasAuthority('VOUCHER_UPDATE')")
     @PostMapping("/{id}/codes/generate")
