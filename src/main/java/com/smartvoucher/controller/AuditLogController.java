@@ -1,7 +1,7 @@
 package com.smartvoucher.controller;
 
 import com.smartvoucher.dto.response.ApiResponse;
-import com.smartvoucher.entity.AuditLog;
+import com.smartvoucher.dto.response.AuditLogResponse;
 import com.smartvoucher.service.AuditLogService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +26,7 @@ public class AuditLogController {
     @Operation(summary = "Xem lịch sử audit log (chỉ admin)")
     @PreAuthorize("hasAuthority('AUDIT_READ')")
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<AuditLog>>> getAll(
+    public ResponseEntity<ApiResponse<Page<AuditLogResponse>>> getAll(
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(auditLogService.getAll(pageable)));
     }

@@ -41,7 +41,8 @@ public class AuditLogService {
         }
     }
 
-    public Page<AuditLog> getAll(Pageable pageable) {
-        return auditLogRepository.findAll(pageable);
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Page<com.smartvoucher.dto.response.AuditLogResponse> getAll(Pageable pageable) {
+        return auditLogRepository.findAll(pageable).map(com.smartvoucher.dto.response.AuditLogResponse::from);
     }
 }
