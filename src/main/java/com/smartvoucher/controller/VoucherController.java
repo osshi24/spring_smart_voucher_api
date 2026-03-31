@@ -60,8 +60,8 @@ public class VoucherController {
     public ResponseEntity<ApiResponse<Page<VoucherResponse>>> getAll(
             @And({
                 @Spec(spec = Equal.class,              params = "id",              path = "id"),
-                @Spec(spec = Like.class,               params = "code",            path = "code"),
-                @Spec(spec = Like.class,               params = "description",     path = "description"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "code",            path = "code"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "description",     path = "description"),
                 @Spec(spec = Equal.class,              params = "status",          path = "status"),
                 @Spec(spec = Equal.class,              params = "discountType",    path = "discountType"),
                 @Spec(spec = Equal.class,              params = "campaignId",      path = "campaign.id"),

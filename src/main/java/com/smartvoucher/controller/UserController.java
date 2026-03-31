@@ -40,10 +40,10 @@ public class UserController {
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAll(
             @And({
                 @Spec(spec = Equal.class,              params = "id",             path = "id"),
-                @Spec(spec = Like.class,               params = "username",       path = "username"),
-                @Spec(spec = Like.class,               params = "email",          path = "email"),
-                @Spec(spec = Like.class,               params = "fullName",       path = "fullName"),
-                @Spec(spec = Like.class,               params = "phone",          path = "phone"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "username",       path = "username"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "email",          path = "email"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "fullName",       path = "fullName"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "phone",          path = "phone"),
                 @Spec(spec = Equal.class,              params = "role",           path = "role"),
                 @Spec(spec = Equal.class,              params = "status",         path = "status"),
                 @Spec(spec = IsTrue.class,             params = "isActive",       path = "isActive"),

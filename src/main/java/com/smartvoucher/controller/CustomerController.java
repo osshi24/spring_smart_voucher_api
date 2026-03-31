@@ -52,9 +52,9 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<Page<CustomerResponse>>> getAll(
             @And({
                 @Spec(spec = Equal.class,              params = "id",            path = "id"),
-                @Spec(spec = Like.class,               params = "name",          path = "fullName"),
-                @Spec(spec = Like.class,               params = "email",         path = "email"),
-                @Spec(spec = Like.class,               params = "phone",         path = "phone"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "name",          path = "fullName"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "email",         path = "email"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "phone",         path = "phone"),
                 @Spec(spec = Equal.class,              params = "externalId",    path = "externalId"),
                 @Spec(spec = IsTrue.class,             params = "isActive",      path = "isActive"),
                 @Spec(spec = GreaterThanOrEqual.class, params = "createdAtFrom", path = "createdAt",
@@ -145,7 +145,7 @@ public class CustomerController {
     public ResponseEntity<byte[]> exportCsv(
             @And({
                 @Spec(spec = IsTrue.class, params = "isActive", path = "isActive"),
-                @Spec(spec = Like.class,   params = "name",     path = "fullName")
+                @Spec(spec = LikeIgnoreCase.class, params = "name", path = "fullName")
             }) Specification<Customer> spec) {
         byte[] csv = exportService.exportCustomers(spec);
         return ResponseEntity.ok()

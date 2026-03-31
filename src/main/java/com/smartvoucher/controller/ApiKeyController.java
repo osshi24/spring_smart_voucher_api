@@ -45,8 +45,8 @@ public class ApiKeyController {
     public ResponseEntity<ApiResponse<Page<ApiKeyResponse>>> getAll(
             @And({
                 @Spec(spec = Equal.class,              params = "id",              path = "id"),
-                @Spec(spec = Like.class,               params = "name",            path = "name"),
-                @Spec(spec = Like.class,               params = "systemName",      path = "systemName"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "name",            path = "name"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "systemName",      path = "systemName"),
                 @Spec(spec = IsTrue.class,             params = "isActive",        path = "isActive"),
                 @Spec(spec = GreaterThanOrEqual.class, params = "rateLimitMinMin", path = "rateLimitPerMinute"),
                 @Spec(spec = LessThanOrEqual.class,    params = "rateLimitMinMax", path = "rateLimitPerMinute"),

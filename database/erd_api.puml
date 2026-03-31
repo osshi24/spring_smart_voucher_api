@@ -13,7 +13,7 @@ skinparam entity {
 
 skinparam linetype ortho
 
-title Smart Voucher System - ERD (13 bang - API-focused)\nTich hop he thong ngoai qua external ID
+title Smart Voucher System - ERD (17 bang - API-focused)\nTich hop he thong ngoai qua external ID
 
 ' ========================================
 ' 1. USERS
@@ -35,9 +35,10 @@ TABLE(users) {
   COLUMN(updated_at) : TIMESTAMPTZ
 }
 note right of users
-  role: 'ADMIN' | 'STAFF'
+  role: 'ADMIN' | 'STAFF' | 'USER'
+  (USER = Merchant)
   status: 'ACTIVE' | 'PENDING'
-  | 'REJECTED' | 'SUSPENDED'
+  | 'REJECTED'
 end note
 
 ' ========================================
@@ -67,43 +68,49 @@ TABLE(role_permissions) {
 }
 note right of role_permissions
   PK: (role, permission_id)
-  role: 'ADMIN' | 'STAFF'
+  role: 'ADMIN' | 'STAFF' | 'USER'
 end note
 
 ' ========================================
-' 4. EMAIL_VERIFICATION_TOKENS
+' 4. EMAIL_VERIFICATION_OTPS
 ' ========================================
 
-TABLE(email_verification_tokens) {
+TABLE(email_verification_otps) {
   PK(id) : BIGSERIAL
   --
   FK(user_id) : BIGINT NOT NULL
-  COLUMN(token) : VARCHAR(255) NOT NULL UNIQUE
+  COLUMN(otp_hash) : VARCHAR(255) NOT NULL
   COLUMN(expires_at) : TIMESTAMPTZ NOT NULL
+  COLUMN(attempts) : INT DEFAULT 0
   COLUMN(used) : BOOLEAN DEFAULT FALSE
   COLUMN(created_at) : TIMESTAMPTZ
 }
-note right of email_verification_tokens
-  Het han sau 24 gio
+note right of email_verification_otps
+  OTP hash bang BCrypt
+  Het han sau 15 phut
   Su dung 1 lan (used=true)
 end note
 
 ' ========================================
-' 5. PASSWORD_RESET_TOKENS
+' 5. PASSWORD_RESET_OTPS
 ' ========================================
 
-TABLE(password_reset_tokens) {
+TABLE(password_reset_otps) {
   PK(id) : BIGSERIAL
   --
   FK(user_id) : BIGINT NOT NULL
-  COLUMN(token) : VARCHAR(255) NOT NULL UNIQUE
-  COLUMN(expires_at) : TIMESTAMPTZ NOT NULL
+  COLUMN(otp_hash) : VARCHAR(255) NOT NULL
+  COLUMN(reset_token) : VARCHAR(255) UNIQUE
+  COLUMN(otp_expires_at) : TIMESTAMPTZ NOT NULL
+  COLUMN(reset_token_expires_at) : TIMESTAMPTZ
+  COLUMN(attempts) : INT DEFAULT 0
   COLUMN(used) : BOOLEAN DEFAULT FALSE
   COLUMN(created_at) : TIMESTAMPTZ
 }
-note right of password_reset_tokens
-  Het han sau 1 gio
-  Su dung 1 lan (used=true)
+note right of password_reset_otps
+  Buoc 1: OTP (15 phut) -> verify
+  Buoc 2: reset_token (JWT ngan han)
+  -> dung de doi mat khau
 end note
 
 ' ========================================
@@ -114,6 +121,7 @@ TABLE(customers) {
   PK(id) : BIGSERIAL
   --
   COLUMN(external_id) : VARCHAR(100) UNIQUE
+  FK(created_by) : BIGINT
   COLUMN(full_name) : VARCHAR(100) NOT NULL
   COLUMN(email) : VARCHAR(100) UNIQUE
   COLUMN(phone) : VARCHAR(20) UNIQUE
@@ -124,6 +132,8 @@ TABLE(customers) {
 note right of customers
   external_id: ID tu he thong ngoai
   VD: "CUS-001"
+  created_by: merchant so huu KH nay
+  (data isolation)
 end note
 
 ' ========================================
@@ -178,13 +188,20 @@ TABLE(vouchers) {
   COLUMN(is_public) : BOOLEAN DEFAULT TRUE
   COLUMN(valid_from) : TIMESTAMPTZ NOT NULL
   COLUMN(valid_until) : TIMESTAMPTZ NOT NULL
+  COLUMN(code_type) : VARCHAR(10) NOT NULL DEFAULT 'SHARED'
   COLUMN(status) : VARCHAR(50) NOT NULL
   FK(created_by) : BIGINT NOT NULL
   COLUMN(created_at) : TIMESTAMPTZ
+  COLUMN(updated_at) : TIMESTAMPTZ
 }
 note right of vouchers
   discount_type: 'PERCENTAGE' | 'FIXED_AMOUNT'
-  status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED'
+  code_type: 'SHARED' | 'UNIQUE'
+  SHARED: 1 code dung chung
+  UNIQUE: moi KH 1 code rieng (voucher_codes)
+  --
+  status: 'ACTIVE' | 'PAUSED' | 'INACTIVE'
+  | 'EXPIRED' | 'FULLY_USED' | 'SCHEDULED'
   --
   applicable_*: JSONB mang ID tu he thong ngoai
   [] = ap dung tat ca
@@ -195,7 +212,28 @@ note right of vouchers
 end note
 
 ' ========================================
-' 9. VOUCHER_CUSTOMERS
+' 9. VOUCHER_CODES
+' ========================================
+
+TABLE(voucher_codes) {
+  PK(id) : BIGSERIAL
+  --
+  FK(voucher_id) : BIGINT NOT NULL
+  COLUMN(code) : VARCHAR(50) NOT NULL UNIQUE
+  FK(customer_id) : BIGINT
+  COLUMN(used) : BOOLEAN DEFAULT FALSE
+  COLUMN(used_at) : TIMESTAMPTZ
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of voucher_codes
+  Chi dung khi voucher.code_type = 'UNIQUE'
+  code = "{voucher.code}_{randomId}"
+  customer_id: KH duoc assign ma nay
+  used: da su dung hay chua
+end note
+
+' ========================================
+' 10. VOUCHER_CUSTOMERS
 ' ========================================
 
 TABLE(voucher_customers) {
@@ -207,10 +245,12 @@ TABLE(voucher_customers) {
 }
 note right of voucher_customers
   UNIQUE(voucher_id, customer_id)
+  Danh sach KH duoc phep dung
+  voucher is_public = FALSE
 end note
 
 ' ========================================
-' 10. VOUCHER_DISTRIBUTIONS
+' 11. VOUCHER_DISTRIBUTIONS
 ' ========================================
 
 TABLE(voucher_distributions) {
@@ -222,16 +262,20 @@ TABLE(voucher_distributions) {
   COLUMN(status) : VARCHAR(50) NOT NULL
   COLUMN(sent_at) : TIMESTAMPTZ
   COLUMN(error_message) : TEXT
+  COLUMN(failure_reason) : VARCHAR(500)
   COLUMN(created_at) : TIMESTAMPTZ
 }
 note right of voucher_distributions
   channel: 'EMAIL' | 'SMS'
   status: 'PENDING' | 'SENT'
   | 'FAILED' | 'CANCELLED'
+  --
+  error_message: loi ky thuat (stack trace)
+  failure_reason: ly do nghiep vu
 end note
 
 ' ========================================
-' 11. VOUCHER_USAGES
+' 12. VOUCHER_USAGES
 ' ========================================
 
 TABLE(voucher_usages) {
@@ -256,7 +300,7 @@ note right of voucher_usages
 end note
 
 ' ========================================
-' 12. API_KEYS
+' 13. API_KEYS
 ' ========================================
 
 TABLE(api_keys) {
@@ -273,15 +317,17 @@ TABLE(api_keys) {
   COLUMN(created_at) : TIMESTAMPTZ
 }
 note right of api_keys
-  system_name:
-  'POS_QUAN1' | 'ECOMMERCE_WEB'
-  | 'MOBILE_APP' | ...
+  key_hash: BCrypt(rawKey)
+  rawKey chi hien 1 lan khi tao
+  system_name: ten he thong tich hop
+  VD: 'POS_QUAN1' | 'ECOMMERCE_WEB'
   --
   rate_limit_per_day = NULL: unlimited
+  Toi da 10 key active / merchant
 end note
 
 ' ========================================
-' 13. API_REQUEST_LOGS
+' 14. API_REQUEST_LOGS
 ' ========================================
 
 TABLE(api_request_logs) {
@@ -297,6 +343,84 @@ TABLE(api_request_logs) {
   COLUMN(ip_address) : VARCHAR(45)
   COLUMN(created_at) : TIMESTAMPTZ
 }
+note right of api_request_logs
+  Ghi lai moi API call tu POS
+  api_key_id = NULL: key bi xoa
+end note
+
+' ========================================
+' 15. MERCHANT_WEBHOOKS
+' ========================================
+
+TABLE(merchant_webhooks) {
+  PK(id) : BIGSERIAL
+  --
+  FK(user_id) : BIGINT NOT NULL
+  COLUMN(url) : VARCHAR(500) NOT NULL
+  COLUMN(secret) : VARCHAR(255) NOT NULL
+  COLUMN(events) : TEXT[]
+  COLUMN(is_active) : BOOLEAN DEFAULT TRUE
+  COLUMN(failure_count) : INT DEFAULT 0
+  COLUMN(last_triggered_at) : TIMESTAMPTZ
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of merchant_webhooks
+  events: mang event duoc lang nghe
+  VD: {"voucher.redeemed"}
+  --
+  Payload duoc ky HMAC-SHA256(secret)
+  Tu dong disable khi failure_count >= 10
+  Retry toi da 3 lan (exponential backoff)
+end note
+
+' ========================================
+' 16. AUDIT_LOGS
+' ========================================
+
+TABLE(audit_logs) {
+  PK(id) : BIGSERIAL
+  --
+  FK(user_id) : BIGINT
+  COLUMN(action) : VARCHAR(50) NOT NULL
+  COLUMN(entity_type) : VARCHAR(50) NOT NULL
+  COLUMN(entity_id) : BIGINT NOT NULL
+  COLUMN(old_value) : JSONB
+  COLUMN(new_value) : JSONB
+  COLUMN(created_at) : TIMESTAMPTZ
+}
+note right of audit_logs
+  action: 'CREATE' | 'UPDATE' | 'DELETE'
+  | 'APPROVE' | 'REJECT' | 'LOGIN'
+  | 'REDEEM' | 'REVERSE' | 'STATUS_CHANGE'
+  --
+  entity_type: 'Voucher' | 'Campaign'
+  | 'Customer' | 'User' | 'VoucherUsage'
+  --
+  old_value/new_value: snapshot truoc/sau thay doi
+end note
+
+' ========================================
+' 17. MERCHANT_PROFILES
+' ========================================
+
+TABLE(merchant_profiles) {
+  PK(id) : BIGSERIAL
+  --
+  FK(user_id) : BIGINT NOT NULL UNIQUE
+  COLUMN(business_name) : VARCHAR(200)
+  COLUMN(business_type) : VARCHAR(50)
+  COLUMN(address) : TEXT
+  COLUMN(logo_url) : VARCHAR(500)
+  COLUMN(tax_code) : VARCHAR(20)
+  COLUMN(max_api_keys) : INT DEFAULT 10
+  COLUMN(created_at) : TIMESTAMPTZ
+  COLUMN(updated_at) : TIMESTAMPTZ
+}
+note right of merchant_profiles
+  1-1 voi users
+  max_api_keys: gioi han so API Key
+  active toi da (mac dinh 10)
+end note
 
 ' ========================================
 ' RELATIONSHIPS
@@ -304,13 +428,20 @@ TABLE(api_request_logs) {
 
 role_permissions }o--|| permissions : "permission_id"
 
-email_verification_tokens }o--|| users : "user_id"
-password_reset_tokens }o--|| users : "user_id"
+email_verification_otps }o--|| users : "user_id"
+password_reset_otps }o--|| users : "user_id"
+
+merchant_profiles ||--|| users : "user_id"
 
 campaigns }o--|| users : "created_by"
 
+customers }o--o| users : "created_by"
+
 vouchers }o--o| campaigns : "campaign_id"
 vouchers }o--|| users : "created_by"
+
+voucher_codes }o--|| vouchers : "voucher_id"
+voucher_codes }o--o| customers : "customer_id"
 
 voucher_customers }o--|| vouchers : "voucher_id"
 voucher_customers }o--|| customers : "customer_id"
@@ -323,5 +454,9 @@ voucher_usages }o--|| customers : "customer_id"
 
 api_keys }o--|| users : "created_by"
 api_request_logs }o--o| api_keys : "api_key_id"
+
+merchant_webhooks }o--|| users : "user_id"
+
+audit_logs }o--o| users : "user_id"
 
 @enduml

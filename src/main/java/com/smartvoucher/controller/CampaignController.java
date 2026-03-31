@@ -49,8 +49,8 @@ public class CampaignController {
     public ResponseEntity<ApiResponse<Page<CampaignResponse>>> getAll(
             @And({
                 @Spec(spec = Equal.class,              params = "id",            path = "id"),
-                @Spec(spec = Like.class,               params = "name",          path = "name"),
-                @Spec(spec = Like.class,               params = "description",   path = "description"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "name",          path = "name"),
+                @Spec(spec = LikeIgnoreCase.class,     params = "description",   path = "description"),
                 @Spec(spec = Equal.class,              params = "status",        path = "status"),
                 @Spec(spec = GreaterThanOrEqual.class, params = "budgetMin",     path = "budget"),
                 @Spec(spec = LessThanOrEqual.class,    params = "budgetMax",     path = "budget"),
