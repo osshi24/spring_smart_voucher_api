@@ -31,7 +31,7 @@ public class AuditLog {
     @Column(name = "entity_type", nullable = false, length = 50)
     private String entityType;
 
-    @Column(name = "entity_id", nullable = false)
+    @Column(name = "entity_id")
     private Long entityId;
 
     @Type(JsonType.class)

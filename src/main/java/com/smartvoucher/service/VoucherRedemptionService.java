@@ -55,15 +55,19 @@ public class VoucherRedemptionService {
         // --- Idempotency check ---
         String cacheKey = idempotencyKey != null ? buildIdempotencyKey(apiKeyId, idempotencyKey) : null;
         if (cacheKey != null) {
-            String cached = redisTemplate.opsForValue().get(cacheKey);
-            if (cached != null) {
-                try {
-                    VoucherValidateResponse resp = objectMapper.readValue(cached, VoucherValidateResponse.class);
-                    resp.setIdempotent(true);
-                    return resp;
-                } catch (Exception e) {
-                    log.warn("Failed to deserialize idempotency cache: {}", e.getMessage());
+            try {
+                String cached = redisTemplate.opsForValue().get(cacheKey);
+                if (cached != null) {
+                    try {
+                        VoucherValidateResponse resp = objectMapper.readValue(cached, VoucherValidateResponse.class);
+                        resp.setIdempotent(true);
+                        return resp;
+                    } catch (Exception e) {
+                        log.warn("Failed to deserialize idempotency cache: {}", e.getMessage());
+                    }
                 }
+            } catch (Exception e) {
+                log.warn("Redis idempotency lookup failed, proceeding without cache: {}", e.getMessage());
             }
         }
 

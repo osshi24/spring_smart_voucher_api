@@ -1,13 +1,17 @@
 package com.smartvoucher.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartvoucher.dto.request.DistributionCreateRequest;
 import com.smartvoucher.dto.response.ApiResponse;
+import com.smartvoucher.dto.response.BulkDistributionResponse;
 import com.smartvoucher.dto.response.DistributionResponse;
 import com.smartvoucher.entity.VoucherDistribution;
 import com.smartvoucher.service.DistributionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import net.kaczmarzyk.spring.data.jpa.domain.*;
 import net.kaczmarzyk.spring.data.jpa.web.annotation.And;
@@ -21,6 +25,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 @Tag(name = "Phân phối", description = "Quản lý việc gửi voucher đến khách hàng qua email/SMS")
 @RestController
 @RequestMapping("/api/v1/distributions")
@@ -28,14 +36,37 @@ import org.springframework.web.bind.annotation.*;
 public class DistributionController {
 
     private final DistributionService distributionService;
+    private final ObjectMapper objectMapper;
+    private final Validator validator;
 
-    @Operation(summary = "Tạo lệnh phân phối voucher đến một khách hàng")
+    @Operation(summary = "Tạo lệnh phân phối voucher — truyền object để tạo một, truyền array để tạo nhiều")
     @PreAuthorize("hasAuthority('DISTRIBUTION_CREATE')")
     @PostMapping
-    public ResponseEntity<ApiResponse<DistributionResponse>> create(
-            @Valid @RequestBody DistributionCreateRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(distributionService.create(request)));
+    public ResponseEntity<ApiResponse<?>> create(@RequestBody JsonNode body) {
+        if (body.isArray()) {
+            List<DistributionCreateRequest> requests = new ArrayList<>();
+            for (JsonNode node : body) {
+                DistributionCreateRequest req = objectMapper.convertValue(node, DistributionCreateRequest.class);
+                Set<ConstraintViolation<DistributionCreateRequest>> violations = validator.validate(req);
+                if (!violations.isEmpty()) {
+                    String reason = violations.iterator().next().getMessage();
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(ApiResponse.error("VALIDATION_ERROR", reason));
+                }
+                requests.add(req);
+            }
+            BulkDistributionResponse result = distributionService.createBulk(requests);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result));
+        } else {
+            DistributionCreateRequest req = objectMapper.convertValue(body, DistributionCreateRequest.class);
+            Set<ConstraintViolation<DistributionCreateRequest>> violations = validator.validate(req);
+            if (!violations.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error("VALIDATION_ERROR", violations.iterator().next().getMessage()));
+            }
+            DistributionResponse result = distributionService.create(req);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result));
+        }
     }
 
     @Operation(summary = "Lấy danh sách lệnh phân phối (có bộ lọc)")

@@ -2,6 +2,7 @@ package com.smartvoucher.service;
 
 import com.smartvoucher.annotation.Auditable;
 import com.smartvoucher.dto.request.DistributionCreateRequest;
+import com.smartvoucher.dto.response.BulkDistributionResponse;
 import com.smartvoucher.dto.response.DistributionResponse;
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.User;
@@ -25,8 +26,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -37,19 +42,47 @@ public class DistributionService {
     private final VoucherRepository voucherRepository;
     private final CustomerRepository customerRepository;
     private final VoucherUsageRepository voucherUsageRepository;
-    private final com.smartvoucher.repository.VoucherCodeRepository voucherCodeRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final QrTokenService qrTokenService;
+    private final DistributionProcessor distributionProcessor;
 
     @Auditable(action = "CREATE", entityType = "Distribution", entityIdSpel = "#result?.id")
     @Transactional
     public DistributionResponse create(DistributionCreateRequest req) {
+        return createInternal(req, getCurrentUser());
+    }
+
+    @Transactional
+    public BulkDistributionResponse createBulk(List<DistributionCreateRequest> requests) {
+        User currentUser = getCurrentUser();
+        List<BulkDistributionResponse.BulkDistributionError> errors = new ArrayList<>();
+        int succeeded = 0;
+
+        for (int i = 0; i < requests.size(); i++) {
+            try {
+                createInternal(requests.get(i), currentUser);
+                succeeded++;
+            } catch (Exception e) {
+                errors.add(BulkDistributionResponse.BulkDistributionError.builder()
+                        .index(i)
+                        .reason(e.getMessage())
+                        .build());
+            }
+        }
+
+        return BulkDistributionResponse.builder()
+                .total(requests.size())
+                .succeeded(succeeded)
+                .failed(errors.size())
+                .errors(errors)
+                .build();
+    }
+
+    private DistributionResponse createInternal(DistributionCreateRequest req, User currentUser) {
         Voucher voucher = voucherRepository.findById(req.getVoucherId())
                 .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherId()));
 
-        // STAFF/USER can only distribute vouchers they own
-        User currentUser = getCurrentUser();
         if (isRestricted(currentUser) && !voucher.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new ResourceNotFoundException("Voucher not found: " + req.getVoucherId());
         }
@@ -64,53 +97,14 @@ public class DistributionService {
         distribution.setStatus(DistributionStatus.PENDING);
 
         VoucherDistribution saved = distributionRepository.save(distribution);
-        processDistribution(saved.getId());
+        Long savedId = saved.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                distributionProcessor.processAsync(savedId);
+            }
+        });
         return DistributionResponse.from(saved);
-    }
-
-    @Transactional
-    public void processDistribution(Long distributionId) {
-        VoucherDistribution dist = distributionRepository.findById(distributionId).orElse(null);
-        if (dist == null) return;
-        try {
-            Voucher voucher = dist.getVoucher();
-            Customer customer = dist.getCustomer();
-            log.info("Sending voucher {} via {} to customer {}",
-                    voucher.getCode(), dist.getChannel(), customer.getFullName());
-
-            // Assign unique code if applicable
-            if (voucher.getCodeType() == com.smartvoucher.entity.enums.CodeType.UNIQUE) {
-                boolean alreadyAssigned = voucherCodeRepository
-                        .findByVoucherIdAndCustomerId(voucher.getId(), customer.getId()).isPresent();
-                if (!alreadyAssigned) {
-                    java.util.List<com.smartvoucher.entity.VoucherCode> unassigned =
-                            voucherCodeRepository.findUnassignedByVoucherId(voucher.getId());
-                    if (unassigned.isEmpty()) {
-                        throw new IllegalStateException("No unassigned unique codes available for voucher " + voucher.getCode());
-                    }
-                    com.smartvoucher.entity.VoucherCode code = unassigned.get(0);
-                    code.setCustomer(customer);
-                    voucherCodeRepository.save(code);
-                }
-            }
-
-            if (dist.getChannel() == DistributionChannel.EMAIL && customer.getEmail() != null) {
-                Long merchantId = voucher.getCreatedBy() != null ? voucher.getCreatedBy().getId() : null;
-                String token = qrTokenService.generateQrToken(voucher.getCode(), customer.getId(), merchantId);
-                String qrUrl = qrTokenService.buildQrUrl(token);
-                byte[] qrImage = qrTokenService.generateQrImage(qrUrl);
-                emailService.sendVoucherEmail(customer.getEmail(), voucher, customer.getFullName(), qrImage);
-            }
-
-            dist.setStatus(DistributionStatus.SENT);
-            dist.setSentAt(OffsetDateTime.now());
-        } catch (Exception e) {
-            log.warn("Distribution {} failed: {}", distributionId, e.getMessage());
-            dist.setStatus(DistributionStatus.FAILED);
-            dist.setErrorMessage(e.getMessage());
-            dist.setFailureReason(e.getMessage());
-        }
-        distributionRepository.save(dist);
     }
 
     @Transactional
@@ -123,8 +117,14 @@ public class DistributionService {
         dist.setErrorMessage(null);
         dist.setFailureReason(null);
         distributionRepository.save(dist);
-        processDistribution(dist.getId());
-        return DistributionResponse.from(distributionRepository.findById(id).orElseThrow());
+        Long distId = dist.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                distributionProcessor.processAsync(distId);
+            }
+        });
+        return DistributionResponse.from(dist);
     }
 
     @Transactional
@@ -136,7 +136,7 @@ public class DistributionService {
         }
 
         Voucher voucher = dist.getVoucher();
-        com.smartvoucher.entity.Customer customer = dist.getCustomer();
+        Customer customer = dist.getCustomer();
 
         if (customer.getEmail() == null) {
             throw new IllegalArgumentException("Customer does not have an email address");
@@ -155,7 +155,7 @@ public class DistributionService {
         // Only update status to SENT if it was FAILED (SENT distributions keep their status)
         if (dist.getStatus() == DistributionStatus.FAILED) {
             dist.setStatus(DistributionStatus.SENT);
-            dist.setSentAt(java.time.OffsetDateTime.now());
+            dist.setSentAt(OffsetDateTime.now());
             dist.setErrorMessage(null);
             dist.setFailureReason(null);
             distributionRepository.save(dist);
