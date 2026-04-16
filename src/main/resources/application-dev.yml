@@ -10,7 +10,7 @@ spring:
       connection-timeout: 30000
 
   jpa:
-    show-sql: true
+    show-sql: false
 
   data:
     redis:

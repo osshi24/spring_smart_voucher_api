@@ -144,9 +144,10 @@ public class VoucherValidationService {
         if (voucher.getDiscountType() == DiscountType.PERCENTAGE) {
             discount = orderTotal.multiply(voucher.getDiscountValue())
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            if (voucher.getMaxDiscountAmount() != null &&
-                    discount.compareTo(voucher.getMaxDiscountAmount()) > 0) {
-                discount = voucher.getMaxDiscountAmount();
+            BigDecimal maxCap = voucher.getMaxDiscountAmount();
+            if (maxCap != null && maxCap.compareTo(BigDecimal.ZERO) > 0
+                    && discount.compareTo(maxCap) > 0) {
+                discount = maxCap;
             }
         } else {
             discount = voucher.getDiscountValue();
