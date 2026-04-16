@@ -9,12 +9,16 @@ import com.smartvoucher.entity.ApiKey;
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.User;
 import com.smartvoucher.entity.Voucher;
+import com.smartvoucher.entity.VoucherCode;
 import com.smartvoucher.entity.VoucherUsage;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import com.smartvoucher.event.VoucherRedeemedEvent;
+import com.smartvoucher.exception.ConflictException;
+import com.smartvoucher.exception.ForbiddenException;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.exception.VoucherUsageLimitException;
 import com.smartvoucher.repository.ApiKeyRepository;
+import com.smartvoucher.repository.VoucherCodeRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
 import jakarta.persistence.EntityManager;
@@ -35,6 +39,7 @@ import java.time.OffsetDateTime;
 public class VoucherRedemptionService {
 
     private final VoucherRepository voucherRepository;
+    private final VoucherCodeRepository voucherCodeRepository;
     private final VoucherUsageRepository voucherUsageRepository;
     private final VoucherValidationService voucherValidationService;
     private final CustomerResolutionService customerResolutionService;
@@ -76,15 +81,30 @@ public class VoucherRedemptionService {
         Customer customer = customerResolutionService.resolve(
                 req.getCustomerId(), req.getCustomerRef(), merchant, true);
 
-        // --- Duplicate order check ---
-        Voucher voucherCheck = voucherRepository.findByCode(req.getVoucherCode().toUpperCase())
-                .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherCode()));
+        // --- Resolve voucher: try unique code first, then fall back to shared voucher code ---
+        String inputCode = req.getVoucherCode().toUpperCase();
+        VoucherCode uniqueCode = voucherCodeRepository.findByCode(inputCode).orElse(null);
+        Voucher voucherCheck;
+        if (uniqueCode != null) {
+            voucherCheck = uniqueCode.getVoucher();
+            if (Boolean.TRUE.equals(uniqueCode.getUsed())) {
+                throw new ConflictException("Voucher đã được sử dụng");
+            }
+            if (uniqueCode.getCustomer() != null
+                    && !uniqueCode.getCustomer().getId().equals(customer.getId())) {
+                throw new ForbiddenException("Voucher này không thuộc về khách hàng");
+            }
+        } else {
+            voucherCheck = voucherRepository.findByCode(inputCode)
+                    .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherCode()));
+        }
 
         if (voucherUsageRepository.existsByVoucherIdAndExternalOrderId(
                 voucherCheck.getId(), req.getExternalOrderId())) {
             // Treat existing order as idempotent success
-            VoucherValidateResponse resp = VoucherValidateResponse.valid(
-                    voucherCheck.getCode(), voucherCheck.getDiscountType(),
+            String idemCode = uniqueCode != null ? uniqueCode.getCode() : voucherCheck.getCode();
+            VoucherValidateResponse resp = VoucherValidateResponse.redeemed(
+                    idemCode, voucherCheck.getDiscountType(),
                     voucherCheck.getDiscountValue(), BigDecimal.ZERO, voucherCheck.getMaxDiscountAmount());
             resp.setIdempotent(true);
             return resp;
@@ -138,6 +158,16 @@ public class VoucherRedemptionService {
         }
         voucherRepository.save(voucher);
 
+        // --- Mark unique code as used (if applicable) ---
+        if (uniqueCode != null) {
+            uniqueCode.setUsed(true);
+            uniqueCode.setUsedAt(OffsetDateTime.now());
+            if (uniqueCode.getCustomer() == null) {
+                uniqueCode.setCustomer(customer);
+            }
+            voucherCodeRepository.save(uniqueCode);
+        }
+
         // --- Dispatch webhook ---
         if (apiKeyId != null) {
             try {
@@ -161,8 +191,9 @@ public class VoucherRedemptionService {
                 voucher.getValidUntil()
         ));
 
-        VoucherValidateResponse response = VoucherValidateResponse.valid(
-                voucher.getCode(),
+        String responseCode = uniqueCode != null ? uniqueCode.getCode() : voucher.getCode();
+        VoucherValidateResponse response = VoucherValidateResponse.redeemed(
+                responseCode,
                 voucher.getDiscountType(),
                 voucher.getDiscountValue(),
                 discountAmount,

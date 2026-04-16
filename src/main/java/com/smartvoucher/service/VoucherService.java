@@ -46,7 +46,7 @@ public class VoucherService {
     private final CampaignRepository campaignRepository;
     private final CustomerRepository customerRepository;
     private final VoucherCustomerRepository voucherCustomerRepository;
-    private final DistributionService distributionService;
+    private final DistributionProcessor distributionProcessor;
     private final DistributionRepository distributionRepository;
 
     @Auditable(action = "CREATE", entityType = "Voucher", entityIdSpel = "#result?.id")
@@ -281,7 +281,7 @@ public class VoucherService {
                 dist.setChannel(DistributionChannel.EMAIL);
                 dist.setStatus(DistributionStatus.PENDING);
                 VoucherDistribution saved = distributionRepository.save(dist);
-                distributionService.processDistribution(saved.getId());
+                distributionProcessor.processSync(saved.getId());
                 VoucherDistribution updated = distributionRepository.findById(saved.getId()).orElse(saved);
                 if (updated.getStatus() == DistributionStatus.SENT) {
                     sent++;

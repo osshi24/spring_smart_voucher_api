@@ -32,6 +32,13 @@ public class VoucherValidateResponse {
         return res;
     }
 
+    public static VoucherValidateResponse redeemed(String code, DiscountType type, BigDecimal value,
+                                                    BigDecimal amount, BigDecimal maxAmount) {
+        VoucherValidateResponse res = valid(code, type, value, amount, maxAmount);
+        res.message = "Voucher redeemed successfully";
+        return res;
+    }
+
     public static VoucherValidateResponse invalid(String message) {
         VoucherValidateResponse res = new VoucherValidateResponse();
         res.valid = false;

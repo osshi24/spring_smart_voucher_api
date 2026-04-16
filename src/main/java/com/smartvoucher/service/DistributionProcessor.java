@@ -29,6 +29,16 @@ public class DistributionProcessor {
     @Transactional
     public void processAsync(Long distributionId) {
         if (distributionId == null) return;
+        doProcess(distributionId);
+    }
+
+    @Transactional
+    public void processSync(Long distributionId) {
+        if (distributionId == null) return;
+        doProcess(distributionId);
+    }
+
+    private void doProcess(Long distributionId) {
         VoucherDistribution dist = distributionRepository.findById(distributionId).orElse(null);
         if (dist == null) return;
         try {

@@ -50,9 +50,16 @@ public class JwtRateLimitFilter extends OncePerRequestFilter {
         String username = auth.getName();
         String key = "jwt-rl:" + username + ":" + (System.currentTimeMillis() / 60000);
 
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (Long.valueOf(1L).equals(count)) {
-            redisTemplate.expire(key, Duration.ofMinutes(2).toSeconds(), java.util.concurrent.TimeUnit.SECONDS);
+        Long count;
+        try {
+            count = redisTemplate.opsForValue().increment(key);
+            if (Long.valueOf(1L).equals(count)) {
+                redisTemplate.expire(key, Duration.ofMinutes(2).toSeconds(), java.util.concurrent.TimeUnit.SECONDS);
+            }
+        } catch (Exception e) {
+            log.warn("Redis rate limit check failed, allowing request: {}", e.getMessage());
+            filterChain.doFilter(request, response);
+            return;
         }
 
         if (count != null && count > requestsPerMinute) {

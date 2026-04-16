@@ -54,30 +54,34 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (apiKey.getRateLimitPerDay() != null) dayLimit = apiKey.getRateLimitPerDay();
         }
 
-        // Check per-minute limit
-        RateLimitService.RateLimitResult minuteResult = rateLimitService.checkAndIncrementMinute(apiKeyId, minuteLimit);
-        response.setHeader("X-RateLimit-Limit-Minute", String.valueOf(minuteResult.limit()));
-        response.setHeader("X-RateLimit-Remaining-Minute", String.valueOf(minuteResult.remaining()));
-        response.setHeader("X-RateLimit-Reset-Minute", String.valueOf(minuteResult.resetEpochSeconds()));
+        try {
+            // Check per-minute limit
+            RateLimitService.RateLimitResult minuteResult = rateLimitService.checkAndIncrementMinute(apiKeyId, minuteLimit);
+            response.setHeader("X-RateLimit-Limit-Minute", String.valueOf(minuteResult.limit()));
+            response.setHeader("X-RateLimit-Remaining-Minute", String.valueOf(minuteResult.remaining()));
+            response.setHeader("X-RateLimit-Reset-Minute", String.valueOf(minuteResult.resetEpochSeconds()));
 
-        if (minuteResult.isExceeded()) {
-            writeRateLimitError(response, "RATE_LIMIT_EXCEEDED",
-                    "Rate limit exceeded. Limit: " + minuteResult.limit() + " req/min");
-            return;
-        }
-
-        // Check per-day limit (0 = unlimited)
-        if (dayLimit > 0) {
-            RateLimitService.RateLimitResult dayResult = rateLimitService.checkAndIncrementDay(apiKeyId, dayLimit);
-            response.setHeader("X-RateLimit-Limit-Day", String.valueOf(dayResult.limit()));
-            response.setHeader("X-RateLimit-Remaining-Day", String.valueOf(dayResult.remaining()));
-            response.setHeader("X-RateLimit-Reset-Day", String.valueOf(dayResult.resetEpochSeconds()));
-
-            if (dayResult.isExceeded()) {
-                writeRateLimitError(response, "DAILY_LIMIT_EXCEEDED",
-                        "Daily request limit exceeded. Limit: " + dayResult.limit() + " req/day");
+            if (minuteResult.isExceeded()) {
+                writeRateLimitError(response, "RATE_LIMIT_EXCEEDED",
+                        "Rate limit exceeded. Limit: " + minuteResult.limit() + " req/min");
                 return;
             }
+
+            // Check per-day limit (0 = unlimited)
+            if (dayLimit > 0) {
+                RateLimitService.RateLimitResult dayResult = rateLimitService.checkAndIncrementDay(apiKeyId, dayLimit);
+                response.setHeader("X-RateLimit-Limit-Day", String.valueOf(dayResult.limit()));
+                response.setHeader("X-RateLimit-Remaining-Day", String.valueOf(dayResult.remaining()));
+                response.setHeader("X-RateLimit-Reset-Day", String.valueOf(dayResult.resetEpochSeconds()));
+
+                if (dayResult.isExceeded()) {
+                    writeRateLimitError(response, "DAILY_LIMIT_EXCEEDED",
+                            "Daily request limit exceeded. Limit: " + dayResult.limit() + " req/day");
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis rate limit check failed, allowing request: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
