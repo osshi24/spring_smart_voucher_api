@@ -86,7 +86,7 @@ public class VoucherRedemptionService {
 
         // --- Resolve voucher: try unique code first, then fall back to shared voucher code ---
         String inputCode = req.getVoucherCode().toUpperCase();
-        VoucherCode uniqueCode = voucherCodeRepository.findByCode(inputCode).orElse(null);
+        VoucherCode uniqueCode = voucherCodeRepository.findByCodeIgnoreCase(inputCode).orElse(null);
         Voucher voucherCheck;
         if (uniqueCode != null) {
             voucherCheck = uniqueCode.getVoucher();

@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface VoucherCodeRepository extends JpaRepository<VoucherCode, Long> {
     Optional<VoucherCode> findByCode(String code);
+    Optional<VoucherCode> findByCodeIgnoreCase(String code);
     long countByVoucherId(Long voucherId);
     List<VoucherCode> findByVoucherIdAndCustomerIsNull(Long voucherId);
     Optional<VoucherCode> findByVoucherIdAndCustomerId(Long voucherId, Long customerId);

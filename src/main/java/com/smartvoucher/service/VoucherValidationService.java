@@ -45,7 +45,7 @@ public class VoucherValidationService {
         String inputCode = req.getVoucherCode().toUpperCase();
 
         // Try unique code first (mirrors redeem flow), then fall back to master voucher code
-        VoucherCode resolvedUniqueCode = voucherCodeRepository.findByCode(inputCode).orElse(null);
+        VoucherCode resolvedUniqueCode = voucherCodeRepository.findByCodeIgnoreCase(inputCode).orElse(null);
         Voucher voucher;
         if (resolvedUniqueCode != null) {
             voucher = resolvedUniqueCode.getVoucher();
