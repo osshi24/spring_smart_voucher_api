@@ -6,10 +6,12 @@ import com.smartvoucher.entity.ApiKey;
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.User;
 import com.smartvoucher.entity.Voucher;
+import com.smartvoucher.entity.VoucherCode;
 import com.smartvoucher.entity.enums.DiscountType;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.ApiKeyRepository;
+import com.smartvoucher.repository.VoucherCodeRepository;
 import com.smartvoucher.repository.VoucherCustomerRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
@@ -27,6 +29,7 @@ import java.util.List;
 public class VoucherValidationService {
 
     private final VoucherRepository voucherRepository;
+    private final VoucherCodeRepository voucherCodeRepository;
     private final VoucherCustomerRepository voucherCustomerRepository;
     private final VoucherUsageRepository voucherUsageRepository;
     private final CustomerResolutionService customerResolutionService;
@@ -39,8 +42,17 @@ public class VoucherValidationService {
 
     @Transactional
     public VoucherValidateResponse validate(VoucherValidateRequest req, Long apiKeyId) {
-        Voucher voucher = voucherRepository.findByCode(req.getVoucherCode().toUpperCase())
-                .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherCode()));
+        String inputCode = req.getVoucherCode().toUpperCase();
+
+        // Try unique code first (mirrors redeem flow), then fall back to master voucher code
+        VoucherCode resolvedUniqueCode = voucherCodeRepository.findByCode(inputCode).orElse(null);
+        Voucher voucher;
+        if (resolvedUniqueCode != null) {
+            voucher = resolvedUniqueCode.getVoucher();
+        } else {
+            voucher = voucherRepository.findByCode(inputCode)
+                    .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherCode()));
+        }
 
         // Check status
         if (voucher.getStatus() == VoucherStatus.PAUSED) {
@@ -120,11 +132,19 @@ public class VoucherValidationService {
             }
         }
 
-        // Check unique code assignment
+        // Check unique code assignment — use VoucherCode.customer (not voucher_customers table)
         if (voucher.getCodeType() != null && voucher.getCodeType() == com.smartvoucher.entity.enums.CodeType.UNIQUE) {
-            boolean assigned = voucherCustomerRepository.existsByVoucherIdAndCustomerId(voucher.getId(), customer.getId());
-            if (!assigned) {
+            VoucherCode uniqueCode = resolvedUniqueCode != null
+                    ? resolvedUniqueCode
+                    : voucherCodeRepository.findByVoucherIdAndCustomerId(voucher.getId(), customer.getId()).orElse(null);
+            if (uniqueCode == null) {
                 return VoucherValidateResponse.invalid("Voucher unique code not assigned to this customer");
+            }
+            if (uniqueCode.getCustomer() != null && !uniqueCode.getCustomer().getId().equals(customer.getId())) {
+                return VoucherValidateResponse.invalid("Voucher này không thuộc về bạn");
+            }
+            if (Boolean.TRUE.equals(uniqueCode.getUsed())) {
+                return VoucherValidateResponse.invalid("Voucher unique code đã được sử dụng");
             }
         }
 

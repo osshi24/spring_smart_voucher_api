@@ -19,6 +19,7 @@ import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.exception.VoucherUsageLimitException;
 import com.smartvoucher.repository.ApiKeyRepository;
 import com.smartvoucher.repository.VoucherCodeRepository;
+import com.smartvoucher.repository.VoucherCustomerRepository;
 import com.smartvoucher.repository.VoucherRepository;
 import com.smartvoucher.repository.VoucherUsageRepository;
 import jakarta.persistence.EntityManager;
@@ -40,6 +41,7 @@ public class VoucherRedemptionService {
 
     private final VoucherRepository voucherRepository;
     private final VoucherCodeRepository voucherCodeRepository;
+    private final VoucherCustomerRepository voucherCustomerRepository;
     private final VoucherUsageRepository voucherUsageRepository;
     private final VoucherValidationService voucherValidationService;
     private final CustomerResolutionService customerResolutionService;
@@ -50,6 +52,7 @@ public class VoucherRedemptionService {
     private final ObjectMapper objectMapper;
     private final WebhookService webhookService;
 
+    @Transactional
     public VoucherValidateResponse redeem(VoucherRedeemRequest req) {
         return redeem(req, null, null);
     }
@@ -87,6 +90,28 @@ public class VoucherRedemptionService {
         Voucher voucherCheck;
         if (uniqueCode != null) {
             voucherCheck = uniqueCode.getVoucher();
+        } else {
+            voucherCheck = voucherRepository.findByCode(inputCode)
+                    .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherCode()));
+            if (voucherCheck.getCodeType() == com.smartvoucher.entity.enums.CodeType.UNIQUE) {
+                throw new IllegalArgumentException(
+                        "Voucher này yêu cầu sử dụng mã code riêng của bạn, không dùng được master code");
+            }
+        }
+
+        // --- Idempotency check before used-flag check so repeated same-order calls return idempotent ---
+        if (voucherUsageRepository.existsByVoucherIdAndExternalOrderId(
+                voucherCheck.getId(), req.getExternalOrderId())) {
+            String idemCode = uniqueCode != null ? uniqueCode.getCode() : voucherCheck.getCode();
+            VoucherValidateResponse resp = VoucherValidateResponse.redeemed(
+                    idemCode, voucherCheck.getDiscountType(),
+                    voucherCheck.getDiscountValue(), BigDecimal.ZERO, voucherCheck.getMaxDiscountAmount());
+            resp.setIdempotent(true);
+            return resp;
+        }
+
+        // --- Validate unique code ownership/used status ---
+        if (uniqueCode != null) {
             if (Boolean.TRUE.equals(uniqueCode.getUsed())) {
                 throw new ConflictException("Voucher đã được sử dụng");
             }
@@ -94,20 +119,6 @@ public class VoucherRedemptionService {
                     && !uniqueCode.getCustomer().getId().equals(customer.getId())) {
                 throw new ForbiddenException("Voucher này không thuộc về khách hàng");
             }
-        } else {
-            voucherCheck = voucherRepository.findByCode(inputCode)
-                    .orElseThrow(() -> new ResourceNotFoundException("Voucher not found: " + req.getVoucherCode()));
-        }
-
-        if (voucherUsageRepository.existsByVoucherIdAndExternalOrderId(
-                voucherCheck.getId(), req.getExternalOrderId())) {
-            // Treat existing order as idempotent success
-            String idemCode = uniqueCode != null ? uniqueCode.getCode() : voucherCheck.getCode();
-            VoucherValidateResponse resp = VoucherValidateResponse.redeemed(
-                    idemCode, voucherCheck.getDiscountType(),
-                    voucherCheck.getDiscountValue(), BigDecimal.ZERO, voucherCheck.getMaxDiscountAmount());
-            resp.setIdempotent(true);
-            return resp;
         }
 
         // --- Pessimistic lock ---
@@ -135,6 +146,14 @@ public class VoucherRedemptionService {
 
         if (req.getOrderTotal().compareTo(voucher.getMinOrderValue()) < 0) {
             throw new IllegalArgumentException("Order total does not meet minimum requirement");
+        }
+
+        // --- Check private voucher assignment (SHARED type only; UNIQUE type already checked via uniqueCode.customer) ---
+        if (!voucher.getIsPublic() && uniqueCode == null) {
+            boolean assigned = voucherCustomerRepository.existsByVoucherIdAndCustomerId(voucher.getId(), customer.getId());
+            if (!assigned) {
+                throw new ForbiddenException("Voucher is not assigned to this customer");
+            }
         }
 
         // --- Calculate discount ---

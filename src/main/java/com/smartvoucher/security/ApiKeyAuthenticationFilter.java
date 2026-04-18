@@ -38,7 +38,6 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
         if (StringUtils.hasText(apiKey) && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                // Find active API keys and verify the raw key against stored BCrypt hash
                 List<ApiKey> activeKeys = apiKeyRepository.findByIsActiveTrue();
                 for (ApiKey key : activeKeys) {
                     if (passwordEncoder.matches(apiKey, key.getKeyHash())) {
@@ -50,12 +49,15 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                             );
                             SecurityContextHolder.getContext().setAuthentication(auth);
                             request.setAttribute("apiKeyId", key.getId());
+                        } else {
+                            log.warn("API key '{}' matched but is expired (expiresAt={})",
+                                    key.getSystemName(), key.getExpiresAt());
                         }
                         break;
                     }
                 }
             } catch (Exception e) {
-                log.debug("API key authentication failed: {}", e.getMessage());
+                log.warn("API key authentication error: {}", e.getMessage());
             }
         }
 

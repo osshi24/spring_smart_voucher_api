@@ -2,11 +2,13 @@ package com.smartvoucher.service;
 
 import com.smartvoucher.entity.Customer;
 import com.smartvoucher.entity.Voucher;
+import com.smartvoucher.entity.VoucherCustomer;
 import com.smartvoucher.entity.VoucherDistribution;
 import com.smartvoucher.entity.enums.DistributionChannel;
 import com.smartvoucher.entity.enums.DistributionStatus;
 import com.smartvoucher.repository.DistributionRepository;
 import com.smartvoucher.repository.VoucherCodeRepository;
+import com.smartvoucher.repository.VoucherCustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -22,6 +24,7 @@ public class DistributionProcessor {
 
     private final DistributionRepository distributionRepository;
     private final VoucherCodeRepository voucherCodeRepository;
+    private final VoucherCustomerRepository voucherCustomerRepository;
     private final EmailService emailService;
     private final QrTokenService qrTokenService;
 
@@ -59,6 +62,13 @@ public class DistributionProcessor {
                     com.smartvoucher.entity.VoucherCode code = unassigned.get(0);
                     code.setCustomer(customer);
                     voucherCodeRepository.save(code);
+                }
+                // Sync to voucher_customers so validate()'s private-voucher check works correctly
+                if (!voucherCustomerRepository.existsByVoucherIdAndCustomerId(voucher.getId(), customer.getId())) {
+                    voucherCustomerRepository.save(VoucherCustomer.builder()
+                            .voucher(voucher)
+                            .customer(customer)
+                            .build());
                 }
             }
 

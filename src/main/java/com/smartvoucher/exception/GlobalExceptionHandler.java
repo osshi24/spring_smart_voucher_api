@@ -3,8 +3,10 @@ package com.smartvoucher.exception;
 import com.smartvoucher.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -95,6 +97,18 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("DATA_INTEGRITY_VIOLATION", message));
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePropertyReference(PropertyReferenceException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("BAD_REQUEST", "Invalid sort or filter field: " + ex.getPropertyName()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotReadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("BAD_REQUEST", "Invalid JSON: " + ex.getMostSpecificCause().getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
