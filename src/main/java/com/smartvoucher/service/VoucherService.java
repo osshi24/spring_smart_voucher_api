@@ -18,6 +18,7 @@ import com.smartvoucher.entity.enums.DistributionStatus;
 import com.smartvoucher.entity.enums.UserRole;
 import com.smartvoucher.entity.enums.VoucherStatus;
 import java.util.List;
+import com.smartvoucher.exception.ConflictException;
 import com.smartvoucher.exception.DuplicateResourceException;
 import org.springframework.data.jpa.domain.Specification;
 import com.smartvoucher.exception.ResourceNotFoundException;
@@ -27,6 +28,7 @@ import com.smartvoucher.repository.DistributionRepository;
 import com.smartvoucher.repository.UserRepository;
 import com.smartvoucher.repository.VoucherCustomerRepository;
 import com.smartvoucher.repository.VoucherRepository;
+import com.smartvoucher.repository.VoucherUsageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +48,7 @@ public class VoucherService {
     private final CampaignRepository campaignRepository;
     private final CustomerRepository customerRepository;
     private final VoucherCustomerRepository voucherCustomerRepository;
+    private final VoucherUsageRepository voucherUsageRepository;
     private final DistributionProcessor distributionProcessor;
     private final DistributionRepository distributionRepository;
 
@@ -159,8 +162,9 @@ public class VoucherService {
     @Transactional
     public void delete(Long id) {
         Voucher voucher = findById(id);
-        if (voucher.getCurrentUsageCount() > 0) {
-            throw new DuplicateResourceException("Cannot delete voucher that has been used " + voucher.getCurrentUsageCount() + " time(s)");
+        long usageCount = voucherUsageRepository.countByVoucherId(id);
+        if (usageCount > 0) {
+            throw new ConflictException("Cannot delete voucher that has been used " + usageCount + " time(s)");
         }
         voucherRepository.delete(voucher);
     }

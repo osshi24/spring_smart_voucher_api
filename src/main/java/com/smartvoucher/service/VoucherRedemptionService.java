@@ -139,8 +139,9 @@ public class VoucherRedemptionService {
             throw new IllegalArgumentException("Voucher is not valid at this time");
         }
 
-        if (voucher.getMaxUsageTotal() != null &&
-                voucher.getCurrentUsageCount() >= voucher.getMaxUsageTotal()) {
+        if (voucher.getMaxUsageTotal() != null
+                && voucher.getMaxUsageTotal() > 0
+                && voucher.getCurrentUsageCount() >= voucher.getMaxUsageTotal()) {
             throw new VoucherUsageLimitException("Voucher usage limit has been reached");
         }
 
@@ -171,8 +172,9 @@ public class VoucherRedemptionService {
 
         // --- Update usage count + auto-transition ---
         voucher.setCurrentUsageCount(voucher.getCurrentUsageCount() + 1);
-        if (voucher.getMaxUsageTotal() != null &&
-                voucher.getCurrentUsageCount() >= voucher.getMaxUsageTotal()) {
+        if (voucher.getMaxUsageTotal() != null
+                && voucher.getMaxUsageTotal() > 0
+                && voucher.getCurrentUsageCount() >= voucher.getMaxUsageTotal()) {
             voucher.setStatus(VoucherStatus.FULLY_USED);
         }
         voucherRepository.save(voucher);

@@ -116,14 +116,15 @@ public class VoucherValidationService {
             }
         }
 
-        // Check max usage total
-        if (voucher.getMaxUsageTotal() != null &&
-                voucher.getCurrentUsageCount() >= voucher.getMaxUsageTotal()) {
+        // Check max usage total (NULL or 0 = unlimited)
+        if (voucher.getMaxUsageTotal() != null
+                && voucher.getMaxUsageTotal() > 0
+                && voucher.getCurrentUsageCount() >= voucher.getMaxUsageTotal()) {
             return VoucherValidateResponse.invalid("Voucher usage limit reached");
         }
 
-        // Check max usage per customer
-        if (voucher.getMaxUsagePerCustomer() != null) {
+        // Check max usage per customer (NULL or 0 = unlimited)
+        if (voucher.getMaxUsagePerCustomer() != null && voucher.getMaxUsagePerCustomer() > 0) {
             long customerUsageCount = voucherUsageRepository.countByVoucherIdAndCustomerId(
                     voucher.getId(), customer.getId()
             );
