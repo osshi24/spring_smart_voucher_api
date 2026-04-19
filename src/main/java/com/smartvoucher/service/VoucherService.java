@@ -76,7 +76,7 @@ public class VoucherService {
         voucher.setCodeType(req.getCodeType() != null ? req.getCodeType() : com.smartvoucher.entity.enums.CodeType.SHARED);
         // For UNIQUE vouchers, maxUsageTotal is derived from the number of generated codes (auto-synced via VoucherCodeService)
         voucher.setMaxUsageTotal(voucher.getCodeType() == com.smartvoucher.entity.enums.CodeType.UNIQUE
-                ? 0
+                ? Integer.valueOf(0)
                 : req.getMaxUsageTotal());
         voucher.setValidFrom(req.getValidFrom());
         voucher.setValidUntil(req.getValidUntil());

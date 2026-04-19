@@ -119,8 +119,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
-        log.error("Unexpected error: ", ex);
+        log.error("Unexpected error [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
+        String details = ex.getClass().getSimpleName() + ": " + (ex.getMessage() != null ? ex.getMessage() : "no message");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("INTERNAL_ERROR", "An unexpected error occurred"));
+                .body(ApiResponse.error("INTERNAL_ERROR", details));
     }
 }
