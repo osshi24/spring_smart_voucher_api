@@ -50,19 +50,24 @@ public class DistributionProcessor {
             log.info("Sending voucher {} via {} to customer {}",
                     voucher.getCode(), dist.getChannel(), customer.getFullName());
 
+            // Code delivered to the customer: assigned child code for UNIQUE, master code for SHARED
+            String deliveredCode = voucher.getCode();
+
             if (voucher.getCodeType() == com.smartvoucher.entity.enums.CodeType.UNIQUE) {
-                boolean alreadyAssigned = voucherCodeRepository
-                        .findByVoucherIdAndCustomerId(voucher.getId(), customer.getId()).isPresent();
-                if (!alreadyAssigned) {
+                com.smartvoucher.entity.VoucherCode assigned = voucherCodeRepository
+                        .findByVoucherIdAndCustomerId(voucher.getId(), customer.getId())
+                        .orElse(null);
+                if (assigned == null) {
                     java.util.List<com.smartvoucher.entity.VoucherCode> unassigned =
                             voucherCodeRepository.findUnassignedByVoucherId(voucher.getId());
                     if (unassigned.isEmpty()) {
                         throw new IllegalStateException("No unassigned unique codes available for voucher " + voucher.getCode());
                     }
-                    com.smartvoucher.entity.VoucherCode code = unassigned.get(0);
-                    code.setCustomer(customer);
-                    voucherCodeRepository.save(code);
+                    assigned = unassigned.get(0);
+                    assigned.setCustomer(customer);
+                    voucherCodeRepository.save(assigned);
                 }
+                deliveredCode = assigned.getCode();
                 // Sync to voucher_customers so validate()'s private-voucher check works correctly
                 if (!voucherCustomerRepository.existsByVoucherIdAndCustomerId(voucher.getId(), customer.getId())) {
                     voucherCustomerRepository.save(VoucherCustomer.builder()
@@ -74,10 +79,10 @@ public class DistributionProcessor {
 
             if (dist.getChannel() == DistributionChannel.EMAIL && customer.getEmail() != null) {
                 Long merchantId = voucher.getCreatedBy() != null ? voucher.getCreatedBy().getId() : null;
-                String token = qrTokenService.generateQrToken(voucher.getCode(), customer.getId(), merchantId);
+                String token = qrTokenService.generateQrToken(deliveredCode, customer.getId(), merchantId);
                 String qrUrl = qrTokenService.buildQrUrl(token);
                 byte[] qrImage = qrTokenService.generateQrImage(qrUrl);
-                emailService.sendVoucherEmail(customer.getEmail(), voucher, customer.getFullName(), qrImage);
+                emailService.sendVoucherEmail(customer.getEmail(), voucher, deliveredCode, customer.getFullName(), qrImage);
             }
 
             dist.setStatus(DistributionStatus.SENT);

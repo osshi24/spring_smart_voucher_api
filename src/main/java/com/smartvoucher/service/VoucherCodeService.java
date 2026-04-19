@@ -3,6 +3,7 @@ package com.smartvoucher.service;
 import com.smartvoucher.entity.Voucher;
 import com.smartvoucher.entity.VoucherCode;
 import com.smartvoucher.entity.enums.CodeType;
+import com.smartvoucher.entity.enums.VoucherStatus;
 import com.smartvoucher.exception.ResourceNotFoundException;
 import com.smartvoucher.repository.VoucherCodeRepository;
 import com.smartvoucher.repository.VoucherRepository;
@@ -67,7 +68,19 @@ public class VoucherCodeService {
 
         voucherCodeRepository.saveAll(toSave);
         long total = voucherCodeRepository.countByVoucherId(voucherId);
-        log.info("Generated {} unique codes for voucher {}, total={}", generated, voucherId, total);
+
+        // Sync maxUsageTotal with actual code count; restore ACTIVE if voucher was FULLY_USED and still within validity
+        int currentMax = voucher.getMaxUsageTotal() != null ? voucher.getMaxUsageTotal() : 0;
+        voucher.setMaxUsageTotal(currentMax + generated);
+        if (voucher.getStatus() == VoucherStatus.FULLY_USED
+                && voucher.getCurrentUsageCount() < voucher.getMaxUsageTotal()
+                && OffsetDateTime.now().isBefore(voucher.getValidUntil())) {
+            voucher.setStatus(VoucherStatus.ACTIVE);
+        }
+        voucherRepository.save(voucher);
+
+        log.info("Generated {} unique codes for voucher {}, total={}, maxUsageTotal={}",
+                generated, voucherId, total, voucher.getMaxUsageTotal());
         return new UniqueCodeGenerateResult(generated, total);
     }
 

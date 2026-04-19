@@ -58,12 +58,16 @@ public class EmailService {
     }
 
     public void sendVoucherEmail(String to, Voucher voucher, String customerName, byte[] qrImageBytes) {
+        sendVoucherEmail(to, voucher, voucher.getCode(), customerName, qrImageBytes);
+    }
+
+    public void sendVoucherEmail(String to, Voucher voucher, String deliveredCode, String customerName, byte[] qrImageBytes) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(fromAddress);
             helper.setTo(to);
-            helper.setSubject("Voucher " + voucher.getCode() + " - Smart Voucher");
+            helper.setSubject("Voucher " + deliveredCode + " - Smart Voucher");
 
             String discountDisplay = voucher.getDiscountType() == DiscountType.PERCENTAGE
                     ? "Giảm " + voucher.getDiscountValue().toPlainString() + "%"
@@ -79,8 +83,8 @@ public class EmailService {
 
             String html = buildVoucherEmailHtml(
                     customerName,
-                    voucher.getCode(),
-                    voucher.getDescription() != null ? voucher.getDescription() : voucher.getCode(),
+                    deliveredCode,
+                    voucher.getDescription() != null ? voucher.getDescription() : deliveredCode,
                     discountDisplay,
                     minOrder,
                     validUntil
@@ -93,7 +97,7 @@ public class EmailService {
             }
 
             mailSender.send(message);
-            log.debug("Voucher email sent to {}: voucher={}", to, voucher.getCode());
+            log.debug("Voucher email sent to {}: voucher={}", to, deliveredCode);
         } catch (Exception e) {
             log.error("Failed to send voucher email to {}: {}", to, e.getMessage());
             throw new RuntimeException("Voucher email sending failed", e);
