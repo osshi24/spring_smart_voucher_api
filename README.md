@@ -255,7 +255,7 @@ Các endpoint lồng nhau cũng hỗ trợ filter:
 
 > Tài khoản USER (merchant) tự đăng ký qua `POST /api/v1/auth/register-merchant`.
 
-
+docker compose down -v
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 
